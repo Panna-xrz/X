@@ -1,7 +1,12 @@
-"""数据访问层（CRUD）：每个模块对应一个 CRUD 类，只操作单一模型。"""
+"""数据访问层包：导出各模型 CRUD 单例。"""
 
 from app.crud.base import CRUDBase
-from app.crud.contract import CRUDContract
-from app.crud.project import CRUDProject
+from app.crud.contract import contract_crud, contract_node_crud
+from app.crud.project import project_crud
 
-__all__ = ["CRUDBase", "CRUDProject", "CRUDContract"]
+__all__ = [
+    "CRUDBase",
+    "project_crud",
+    "contract_crud",
+    "contract_node_crud",
+]

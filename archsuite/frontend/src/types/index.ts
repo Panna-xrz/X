@@ -1,37 +1,37 @@
-// 全局类型定义
+// 全局类型定义：与后端 camelCase JSON 契约一一对齐（ID 均为 number）
 
 // 项目状态
 export type ProjectStatus = 'draft' | 'planning' | 'in-progress' | 'completed' | 'archived'
 
 // 项目主体信息
 export interface Project {
-  id: string
+  id: number
   name: string
   code: string // 项目编号
-  client: string // 委托方
-  location: string // 项目地址
-  type: string // 项目类型（公建/住宅/商业等）
-  scale: string // 建设规模
-  startDate: string // 开工日期
-  endDate: string // 竣工日期
-  status: ProjectStatus
-  description?: string
-  createdAt: string
-  updatedAt: string
+  client: string | null // 委托方
+  location: string | null // 项目地址
+  type: string | null // 项目类型（公建/住宅/商业等）
+  scale: string | null // 建设规模
+  startDate: string | null // 开工日期 yyyy-MM-dd
+  endDate: string | null // 竣工日期 yyyy-MM-dd
+  status: string
+  description: string | null
+  createdAt: string | null
+  updatedAt: string | null
 }
 
-// 项目扩展信息（环境/概念/平面/空间等阶段补充字段）
-export interface ProjectExtra {
-  projectId: string
-  landArea?: number // 用地面积
-  buildingArea?: number // 建筑面积
-  floorsAbove?: number // 地上层数
-  floorsUnder?: number // 地下层数
-  heightLimit?: number // 高度限制
-  greenRatio?: number // 绿地率
-  plotRatio?: number // 容积率
-  designStage?: string // 当前设计阶段
-  remarks?: string
+// 项目扩展信息（后端为动态键值对）
+export interface ProjectExtraItem {
+  id: number
+  projectId: number
+  fieldKey: string
+  fieldValue: string | null
+  aiSource: string | null
+}
+
+export interface ProjectExtraResponse {
+  items: ProjectExtraItem[]
+  fields: Record<string, string | null>
 }
 
 // 合同类型：主合同 / 补充协议
@@ -39,47 +39,39 @@ export type ContractType = 'main' | 'supplement'
 
 // 合同主体
 export interface Contract {
-  id: string
-  projectId: string // 关联项目
+  id: number
+  projectId: number // 关联项目
   code: string // 合同编号
   name: string // 合同名称
   type: ContractType
-  party?: string // 乙方
-  signedDate?: string // 签订日期
-  amount: number // 合同金额
-  status: 'draft' | 'reviewing' | 'signed' | 'terminated'
-  parentContractId?: string // 补充协议关联的主合同 id
-  remarks?: string
-  createdAt: string
-  updatedAt: string
+  partyA: string | null // 甲方
+  partyB: string | null // 乙方
+  amount: number | null // 合同金额
+  signedDate: string | null // 签订日期
+  status: string
+  contentText: string | null // 合同正文（AI 起草后写回）
+  parentContractId: number | null // 补充协议关联的主合同 id
+  remarks: string | null
+  createdAt: string | null
+  updatedAt: string | null
 }
 
-// 合同条款节点（用于编辑器左侧结构化树）
+// 收费节点（收费记账）
 export interface ContractNode {
-  id: string
-  contractId: string
-  title: string
-  content: string
-  order: number
-  children?: ContractNode[]
+  id: number
+  contractId: number
+  name: string // 收费节点名称（如：设计费-首付款）
+  ratio: number | null // 占合同金额比例(%)
+  amount: number | null // 节点金额
+  planDate: string | null // 计划收款日期
+  actualDate: string | null // 实际收款日期
+  status: string // planned / invoiced / received / overdue
+  remarks: string | null
+  createdAt: string | null
+  updatedAt: string | null
 }
 
-// 收费记账记录
-export interface BillingRecord {
-  id: string
-  contractId: string
-  node: string // 收费节点名称（如设计费-首付款）
-  amount: number
-  ratio?: number // 占合同比例
-  planDate?: string // 计划日期
-  actualDate?: string // 实际日期
-  status: 'planned' | 'invoiced' | 'received' | 'overdue'
-  remarks?: string
-  createdAt: string
-  updatedAt: string
-}
-
-// 分页结果
+// 分页结果（后端 PageResult 契约）
 export interface PageResult<T> {
   list: T[]
   total: number
@@ -87,17 +79,37 @@ export interface PageResult<T> {
   pageSize: number
 }
 
-// 通用后端响应
+// 通用包装响应（仅后端异常时出现 {code, message, detail, path}）
 export interface ApiResponse<T = unknown> {
   code: number
   message: string
-  data: T
+  data?: T
+  detail?: string | null
 }
 
-// AI 自动提取结果
+// AI 提取项目扩展信息结果
 export interface AiExtractResult {
-  projectId: string
-  fields: Partial<Project>
-  confidence: number
-  raw?: string
+  projectId: number
+  fields: Record<string, string | null>
+  raw: string | null
+}
+
+// AI 起草合同正文结果
+export interface ContractGenerateResult {
+  contractId: number
+  content: string
+}
+
+// AI 合同审核风险项
+export interface ContractRiskItem {
+  clause: string | null // 风险条款
+  level: string | null // 风险等级：高/中/低
+  suggestion: string | null // 改进建议
+}
+
+// AI 合同审核结果
+export interface ContractReviewResult {
+  contractId: number
+  risks: ContractRiskItem[]
+  raw: string | null // 解析失败时的原文回退
 }

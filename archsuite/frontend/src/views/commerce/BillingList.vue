@@ -13,14 +13,23 @@ import {
   NDatePicker,
   NSelect,
   NTag,
-  NEmpty
+  NPopconfirm,
+  NEmpty,
+  useMessage
 } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import { getBillings, createBilling } from '@/api/contract'
-import type { BillingRecord } from '@/types'
+import type { DataTableColumns, SelectOption } from 'naive-ui'
+import { getNodes, createNode, updateNode, deleteNode, getContracts } from '@/api/contract'
+import type { ContractNode } from '@/types'
+
+const message = useMessage()
 
 const loading = ref(false)
-const dataList = ref<BillingRecord[]>([])
+const dataList = ref<ContractNode[]>([])
+const total = ref(0)
+
+// 合同筛选与下拉数据
+const contractFilter = ref<number | null>(null)
+const contractOptions = ref<SelectOption[]>([])
 
 // 状态映射
 const statusMap: Record<string, { label: string; type: 'default' | 'info' | 'success' | 'warning' | 'error' }> = {
@@ -38,14 +47,19 @@ const statusOptions = [
 ]
 
 // 表格列
-const columns = computed<DataTableColumns<BillingRecord>>(() => [
-  { title: '收费节点', key: 'node' },
-  { title: '合同金额占比', key: 'ratio', width: 120, render: (row) => (row.ratio ?? '-') + '%' },
+const columns = computed<DataTableColumns<ContractNode>>(() => [
+  { title: '收费节点', key: 'name' },
+  {
+    title: '合同金额占比',
+    key: 'ratio',
+    width: 120,
+    render: (row) => (row.ratio != null ? `${row.ratio}%` : '-')
+  },
   {
     title: '金额',
     key: 'amount',
     width: 130,
-    render: (row) => `¥ ${(row.amount ?? 0).toLocaleString()}`
+    render: (row) => (row.amount != null ? `¥ ${row.amount.toLocaleString()}` : '-')
   },
   { title: '计划日期', key: 'planDate', width: 120, render: (row) => row.planDate || '-' },
   { title: '实际日期', key: 'actualDate', width: 120, render: (row) => row.actualDate || '-' },
@@ -57,31 +71,80 @@ const columns = computed<DataTableColumns<BillingRecord>>(() => [
       const s = statusMap[row.status] || statusMap.planned
       return h(NTag, { type: s.type, size: 'small', round: true }, { default: () => s.label })
     }
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 130,
+    render: (row) =>
+      h(NSpace, { size: 'small' }, {
+        default: () => [
+          h(
+            NButton,
+            { size: 'small', text: true, type: 'primary', onClick: () => openEdit(row) },
+            { default: () => '编辑' }
+          ),
+          h(
+            NPopconfirm,
+            { onPositiveClick: () => removeNode(row.id) },
+            {
+              trigger: () =>
+                h(
+                  NButton,
+                  { size: 'small', text: true, type: 'error' },
+                  { default: () => '删除' }
+                ),
+              default: () => '确认删除该收费节点？'
+            }
+          )
+        ]
+      })
   }
 ])
 
-// 新增弹窗
+// 新增/编辑弹窗
 const showModal = ref(false)
 const submitting = ref(false)
-const formModel = reactive<Partial<BillingRecord>>({
-  contractId: '',
-  node: '',
-  amount: 0,
-  ratio: undefined,
-  planDate: undefined,
-  actualDate: undefined,
+const editingId = ref<number | null>(null) // null 表示新增
+const formModel = reactive({
+  contractId: null as number | null,
+  name: '',
+  amount: null as number | null,
+  ratio: null as number | null,
+  planDate: null as string | null,
+  actualDate: null as string | null,
   status: 'planned',
   remarks: ''
 })
+
+// 加载合同下拉
+async function loadContractOptions() {
+  try {
+    const res = await getContracts({ page: 1, pageSize: 100 })
+    contractOptions.value = (res.list || []).map((c) => ({
+      label: `${c.code || c.id} ${c.name}`,
+      value: c.id
+    }))
+  } catch {
+    contractOptions.value = []
+  }
+}
 
 // 加载列表
 async function loadList() {
   loading.value = true
   try {
-    const res = await getBillings({ page: 1, pageSize: 50 })
+    const params: { page: number; pageSize: number; contractId?: number } = {
+      page: 1,
+      pageSize: 50
+    }
+    if (contractFilter.value) params.contractId = contractFilter.value
+    const res = await getNodes(params)
     dataList.value = res.list || []
+    total.value = res.total || 0
   } catch (e) {
     dataList.value = []
+    message.error(e instanceof Error ? e.message : '加载收费节点失败')
   } finally {
     loading.value = false
   }
@@ -89,37 +152,86 @@ async function loadList() {
 
 // 打开新增
 function openCreate() {
+  editingId.value = null
   Object.assign(formModel, {
-    contractId: '',
-    node: '',
-    amount: 0,
-    ratio: undefined,
-    planDate: undefined,
-    actualDate: undefined,
+    contractId: contractFilter.value,
+    name: '',
+    amount: null,
+    ratio: null,
+    planDate: null,
+    actualDate: null,
     status: 'planned',
     remarks: ''
   })
   showModal.value = true
 }
 
-// 提交新增
+// 打开编辑
+function openEdit(row: ContractNode) {
+  editingId.value = row.id
+  Object.assign(formModel, {
+    contractId: row.contractId,
+    name: row.name,
+    amount: row.amount,
+    ratio: row.ratio,
+    planDate: row.planDate,
+    actualDate: row.actualDate,
+    status: row.status,
+    remarks: row.remarks || ''
+  })
+  showModal.value = true
+}
+
+// 提交新增/编辑
 async function submit() {
-  if (!formModel.node) {
+  if (!formModel.name) {
+    message.warning('请填写收费节点名称')
+    return
+  }
+  if (!formModel.contractId) {
+    message.warning('请选择所属合同')
     return
   }
   submitting.value = true
   try {
-    await createBilling(formModel)
+    const payload = {
+      name: formModel.name,
+      ratio: formModel.ratio,
+      amount: formModel.amount,
+      planDate: formModel.planDate,
+      actualDate: formModel.actualDate,
+      status: formModel.status,
+      remarks: formModel.remarks || null
+    }
+    if (editingId.value) {
+      await updateNode(editingId.value, payload)
+      message.success('更新成功')
+    } else {
+      await createNode({ ...payload, contractId: formModel.contractId })
+      message.success('新增成功')
+    }
     showModal.value = false
     await loadList()
   } catch (e) {
-    // 忽略，保持弹窗便于重试
+    message.error(e instanceof Error ? e.message : '提交失败')
   } finally {
     submitting.value = false
   }
 }
 
+// 删除节点
+async function removeNode(id: number) {
+  try {
+    await deleteNode(id)
+    message.success('删除成功')
+    await loadList()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
 onMounted(() => {
+  loadContractOptions()
   loadList()
 })
 </script>
@@ -128,6 +240,16 @@ onMounted(() => {
   <NCard title="收费记账" :bordered="false" size="small">
     <template #header-extra>
       <NSpace>
+        <NSelect
+          v-model:value="contractFilter"
+          :options="contractOptions"
+          placeholder="按合同筛选（全部）"
+          clearable
+          filterable
+          size="small"
+          style="width: 240px"
+          @update:value="loadList"
+        />
         <NButton size="small" @click="loadList">刷新</NButton>
         <NButton size="small" type="primary" @click="openCreate">+ 新增收费节点</NButton>
       </NSpace>
@@ -143,16 +265,22 @@ onMounted(() => {
   <NModal
     v-model:show="showModal"
     preset="card"
-    title="新增收费节点"
+    :title="editingId ? '编辑收费节点' : '新增收费节点'"
     style="width: 480px"
     :bordered="false"
   >
     <NForm label-placement="left" label-width="88">
-      <NFormItem label="所属合同">
-        <NSelect v-model:value="formModel.contractId" :options="[]" placeholder="选择合同" />
+      <NFormItem label="所属合同" required>
+        <NSelect
+          v-model:value="formModel.contractId"
+          :options="contractOptions"
+          placeholder="选择合同"
+          filterable
+          :disabled="Boolean(editingId)"
+        />
       </NFormItem>
-      <NFormItem label="收费节点">
-        <NInput v-model:value="formModel.node" placeholder="如：设计费-首付款" />
+      <NFormItem label="收费节点" required>
+        <NInput v-model:value="formModel.name" placeholder="如：设计费-首付款" />
       </NFormItem>
       <NFormItem label="占比(%)">
         <NInputNumber v-model:value="formModel.ratio" :min="0" :max="100" style="width: 100%" />

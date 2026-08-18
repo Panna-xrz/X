@@ -9,7 +9,6 @@ from app.core.config import settings
 from app.core.database import Base
 # 导入所有模型，确保 metadata 包含全部表
 from app.models import (  # noqa: F401
-    BillingRecord,
     Contract,
     ContractNode,
     Project,

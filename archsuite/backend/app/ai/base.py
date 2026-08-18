@@ -1,7 +1,11 @@
-"""AI 提供商抽象基类：统一 chat / complete 接口。"""
+"""AI 提供商抽象基类：统一 chat / complete 接口与调用错误包装。"""
 
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+
+from app.core.exceptions import AICallError, AppException
+from app.core.logging import logger
 
 
 @dataclass
@@ -31,3 +35,18 @@ class AIProvider(ABC):
     async def complete(self, prompt: str, **kwargs: object) -> str:
         """单次补全：接收提示词，返回补全文本。"""
         ...
+
+
+@asynccontextmanager
+async def wrap_ai_errors(provider_name: str):
+    """统一包装 AI 调用异常：业务异常原样抛出，其余转为 AICallError。"""
+    try:
+        yield
+    except AppException:
+        raise
+    except Exception as exc:
+        logger.error("AI 提供商 %s 调用失败：%s", provider_name, exc)
+        raise AICallError(
+            message=f"AI 服务调用失败（{provider_name}）",
+            detail=str(exc),
+        ) from exc

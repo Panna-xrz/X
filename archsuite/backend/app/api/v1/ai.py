@@ -3,8 +3,8 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from app.ai.base import AIMessage
 from app.api.deps import AIProviderDep
-from app.ai.base import AIProvider, AIMessage
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -19,7 +19,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """通用对话请求。"""
 
-    messages: list[ChatMessage] = Field(..., description="消息列表")
+    messages: list[ChatMessage] = Field(default_factory=list, description="消息列表")
     prompt: str | None = Field(None, description="可选单次补全提示词")
 
 
@@ -37,7 +37,10 @@ async def chat(req: ChatRequest, provider: AIProviderDep) -> ChatResponse:
         # 单次补全模式
         content = await provider.complete(req.prompt)
     else:
-        # 多轮对话模式
-        messages = [AIMessage(role=m.role, content=m.content) for m in req.messages]
-        content = await provider.chat(messages)
+        if not req.messages:
+            content = ""
+        else:
+            # 多轮对话模式
+            messages = [AIMessage(role=m.role, content=m.content) for m in req.messages]
+            content = await provider.chat(messages)
     return ChatResponse(content=content, provider=provider.name)

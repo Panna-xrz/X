@@ -1,6 +1,4 @@
-"""Project 数据访问：CRUDProject 含扩展信息操作。"""
-
-from typing import Any
+"""Project 数据访问：项目与扩展信息（upsert 语义）。"""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +21,7 @@ class CRUDProject(CRUDBase[Project]):
         )
         return list(result.scalars().all())
 
-    async def add_extra(
+    async def upsert_extra(
         self,
         db: AsyncSession,
         project_id: int,
@@ -31,7 +29,20 @@ class CRUDProject(CRUDBase[Project]):
         field_value: str | None,
         ai_source: str | None = None,
     ) -> ProjectExtra:
-        """新增一条扩展信息。"""
+        """写入一条扩展信息：同键存在则更新，否则新增（避免重复提取产生脏数据）。"""
+        result = await db.execute(
+            select(ProjectExtra).where(
+                ProjectExtra.project_id == project_id,
+                ProjectExtra.field_key == field_key,
+            )
+        )
+        extra = result.scalar_one_or_none()
+        if extra is not None:
+            extra.field_value = field_value
+            extra.ai_source = ai_source
+            await db.commit()
+            await db.refresh(extra)
+            return extra
         extra = ProjectExtra(
             project_id=project_id,
             field_key=field_key,

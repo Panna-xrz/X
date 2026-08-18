@@ -3,6 +3,8 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.core.logging import logger
+
 
 class AppException(Exception):
     """业务异常基类，携带错误码与消息。"""
@@ -19,6 +21,20 @@ class NotFoundError(AppException):
 
     def __init__(self, message: str = "资源不存在", detail: str | None = None) -> None:
         super().__init__(code=404, message=message, detail=detail)
+
+
+class AIConfigError(AppException):
+    """AI 提供商未配置或配置不完整。"""
+
+    def __init__(self, message: str = "AI 服务未配置", detail: str | None = None) -> None:
+        super().__init__(code=503, message=message, detail=detail)
+
+
+class AICallError(AppException):
+    """AI 提供商调用失败。"""
+
+    def __init__(self, message: str = "AI 服务调用失败", detail: str | None = None) -> None:
+        super().__init__(code=502, message=message, detail=detail)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -39,13 +55,14 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONResponse:
-        """未预期异常兜底处理，返回 500。"""
+        """未预期异常兜底处理：记录完整堆栈，对外仅返回通用信息。"""
+        logger.exception("未处理异常 path=%s", request.url.path)
         return JSONResponse(
             status_code=500,
             content={
                 "code": 500,
                 "message": "服务器内部错误",
-                "detail": str(exc),
+                "detail": None,
                 "path": request.url.path,
             },
         )

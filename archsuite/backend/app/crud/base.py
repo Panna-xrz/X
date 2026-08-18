@@ -2,7 +2,7 @@
 
 from typing import Any, Generic, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import Base
@@ -21,6 +21,15 @@ class CRUDBase(Generic[ModelT]):
         if model is not None:
             self.model = model
 
+    @staticmethod
+    def _apply_filters(stmt: Any, filters: Any) -> Any:
+        """应用过滤条件：支持单个表达式或表达式列表。"""
+        if filters is None:
+            return stmt
+        if isinstance(filters, list):
+            return stmt.where(*filters)
+        return stmt.where(filters)
+
     async def get(self, db: AsyncSession, pk: int) -> ModelT | None:
         """根据主键获取单条记录。"""
         return await db.get(self.model, pk)
@@ -31,21 +40,19 @@ class CRUDBase(Generic[ModelT]):
         skip: int = 0,
         limit: int = 20,
         filters: Any = None,
+        order_by: Any = None,
     ) -> list[ModelT]:
-        """分页查询多条记录，支持可选过滤条件。"""
-        stmt = select(self.model).offset(skip).limit(limit)
-        if filters is not None:
-            stmt = stmt.where(*filters) if isinstance(filters, list) else stmt.where(filters)
+        """分页查询多条记录，支持可选过滤条件与排序。"""
+        stmt = self._apply_filters(select(self.model), filters)
+        if order_by is not None:
+            stmt = stmt.order_by(order_by)
+        stmt = stmt.offset(skip).limit(limit)
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
     async def count(self, db: AsyncSession, filters: Any = None) -> int:
-        """统计记录总数。"""
-        from sqlalchemy import func
-
-        stmt = select(func.count()).select_from(self.model)
-        if filters is not None:
-            stmt = stmt.where(*filters) if isinstance(filters, list) else stmt.where(filters)
+        """统计记录总数，支持可选过滤条件。"""
+        stmt = self._apply_filters(select(func.count()).select_from(self.model), filters)
         result = await db.execute(stmt)
         return int(result.scalar() or 0)
 

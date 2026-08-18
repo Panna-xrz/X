@@ -2,13 +2,16 @@
 
 from openai import AsyncOpenAI
 
-from app.ai.base import AIMessage, AIProvider
+from app.ai.base import AIMessage, AIProvider, wrap_ai_errors
 from app.core.config import settings
 from app.core.logging import logger
 
 
 class OpenAIProvider(AIProvider):
-    """OpenAI 提供商实现，配置来自 settings。"""
+    """OpenAI 提供商实现，配置来自 settings。
+
+    支持通过 openai_base_url 指向 DeepSeek/Qwen 等 OpenAI 兼容端点。
+    """
 
     def __init__(self) -> None:
         self.name = "openai"
@@ -25,12 +28,13 @@ class OpenAIProvider(AIProvider):
         payload = [{"role": m.role, "content": m.content} for m in messages]
         # 仅传递与模型/温度相关的可选参数
         model = str(kwargs.pop("model", self.model))
-        temperature = kwargs.pop("temperature", 0.2)
-        resp = await self.client.chat.completions.create(
-            model=model,
-            messages=payload,
-            temperature=temperature,
-        )
+        temperature = float(kwargs.pop("temperature", 0.2))
+        async with wrap_ai_errors(self.name):
+            resp = await self.client.chat.completions.create(
+                model=model,
+                messages=payload,
+                temperature=temperature,
+            )
         logger.info("OpenAI chat 调用完成，model=%s", model)
         return resp.choices[0].message.content or ""
 
