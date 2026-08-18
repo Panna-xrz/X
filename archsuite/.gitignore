@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.db
+*.sqlite
+*.sqlite3
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node / 前端
+node_modules/
+dist/
+.vite/
+*.local
+
+# 静态托管产物
+backend/static/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# 日志
+*.log
+logs/

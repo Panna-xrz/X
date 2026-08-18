@@ -1,0 +1,114 @@
+// 全局样式：CSS reset、CSS 变量、基础排版、滚动条美化
+
+/* ---------- CSS Reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* ---------- :root CSS 变量（默认亮色，运行时由主题覆盖补充） ---------- */
+:root {
+  --app-primary: #2080f0;
+  --app-bg: #f7f8fa;
+  --app-card-bg: #ffffff;
+  --app-text-1: #333639;
+  --app-text-2: #7d7d7d;
+  --app-divider: #efeff5;
+  --app-radius: 8px;
+  --app-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --app-font-size: 14px;
+  --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --app-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ---------- html / body ---------- */
+html,
+body {
+  font-family: var(--app-font-family);
+  font-size: var(--app-font-size);
+  color: var(--app-text-1);
+  background-color: var(--app-bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- 滚动条美化 ---------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.28);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 暗色模式滚动条 */
+[data-theme='dark'] ::-webkit-scrollbar-thumb,
+.n-config-provider[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover,
+.n-config-provider[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+/* ---------- 通用工具类 ---------- */
+.text-center {
+  text-align: center;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
