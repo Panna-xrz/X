@@ -1,10 +1,10 @@
-"""Contract 数据访问：CRUDContract 含按项目查询与补充协议查询。"""
+"""Contract 数据访问：合同与收费节点。"""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.contract import Contract, ContractType
+from app.models.contract import Contract, ContractNode, ContractType
 
 
 class CRUDContract(CRUDBase[Contract]):
@@ -37,5 +37,21 @@ class CRUDContract(CRUDBase[Contract]):
         return list(result.scalars().all())
 
 
+class CRUDContractNode(CRUDBase[ContractNode]):
+    """ContractNode（收费节点）的 CRUD 实现。"""
+
+    model = ContractNode
+
+    async def list_by_contract(self, db: AsyncSession, contract_id: int) -> list[ContractNode]:
+        """按合同查询全部收费节点（按计划日期升序）。"""
+        result = await db.execute(
+            select(ContractNode)
+            .where(ContractNode.contract_id == contract_id)
+            .order_by(ContractNode.plan_date.asc().nullslast(), ContractNode.id)
+        )
+        return list(result.scalars().all())
+
+
 # 单例
 contract_crud = CRUDContract()
+contract_node_crud = CRUDContractNode()

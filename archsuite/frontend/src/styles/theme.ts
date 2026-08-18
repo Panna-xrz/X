@@ -13,7 +13,7 @@ export interface ThemeState {
 
 // 根据主题状态生成 Naive UI 全局主题覆盖
 // 1) 覆盖 common：主色、圆角、字号、字体族
-// 2) 覆盖 Card/ListItem/FormItem/Tag 等组件去除边框，体现扁平无边框风格
+// 2) 覆盖 Card/Form/Tag 等组件，体现扁平无边框风格
 export function generateThemeOverrides(state: ThemeState): GlobalThemeOverrides {
   const palette = state.isDark ? designTokens.dark : designTokens.light
 
@@ -53,16 +53,8 @@ export function generateThemeOverrides(state: ThemeState): GlobalThemeOverrides 
       colorPopover: palette.cardBackground,
       borderRadius: `${state.borderRadius}px`
     },
-    ListItem: {
-      // 列表项无边框
-      borderColor: BORDER_NONE,
-      color: palette.cardBackground,
-      colorHover: state.isDark ? '#202024' : '#fafafa'
-    },
-    FormItem: {
-      // 表单项无边框
-      borderColor: BORDER_NONE,
-      labelColor: palette.text1,
+    Form: {
+      // 表单标签颜色
       labelTextColor: palette.text1
     },
     Tag: {

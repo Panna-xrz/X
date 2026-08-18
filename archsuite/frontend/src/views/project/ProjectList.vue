@@ -16,7 +16,7 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { getProjects, createProject } from '@/api/project'
-import type { Project, ProjectStatus } from '@/types'
+import type { Project } from '@/types'
 
 const router = useRouter()
 const message = useMessage()
@@ -26,7 +26,7 @@ const loading = ref(false)
 const dataList = ref<Project[]>([])
 
 // 状态标签颜色映射
-const statusMap: Record<ProjectStatus, { label: string; type: 'default' | 'success' | 'warning' | 'info' | 'error' }> = {
+const statusMap: Record<string, { label: string; type: 'default' | 'success' | 'warning' | 'info' | 'error' }> = {
   draft: { label: '草稿', type: 'default' },
   planning: { label: '规划中', type: 'info' },
   'in-progress': { label: '进行中', type: 'warning' },
@@ -86,15 +86,15 @@ async function loadList() {
     const res = await getProjects({ page: 1, pageSize: 20 })
     dataList.value = res.list || []
   } catch (e) {
-    // 后端尚未实现时使用空列表，避免阻塞界面
     dataList.value = []
+    message.error(e instanceof Error ? e.message : '加载项目列表失败')
   } finally {
     loading.value = false
   }
 }
 
 // 跳转详情
-function goDetail(id: string) {
+function goDetail(id: number) {
   router.push(`/project/${id}`)
 }
 
@@ -119,6 +119,10 @@ async function submitCreate() {
     message.warning('请填写项目名称')
     return
   }
+  if (!formModel.code) {
+    message.warning('请填写项目编号')
+    return
+  }
   submitting.value = true
   try {
     await createProject(formModel)
@@ -126,8 +130,7 @@ async function submitCreate() {
     showModal.value = false
     await loadList()
   } catch (e) {
-    // 创建失败提示但不阻塞流程
-    message.error('创建失败，请稍后重试')
+    message.error(e instanceof Error ? e.message : '创建失败，请稍后重试')
   } finally {
     submitting.value = false
   }

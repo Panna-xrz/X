@@ -97,23 +97,24 @@ archsuite/
 │   │   │       ├── router.py  # 聚合各模块 router
 │   │   │       ├── projects.py
 │   │   │       ├── contracts.py
-│   │   │       ├── billing.py
+│   │   │       ├── nodes.py   # 收费节点（跨合同查询，供收费记账页）
 │   │   │       └── ai.py
 │   │   ├── models/
 │   │   │   ├── base.py        # Base + TimestampMixin
 │   │   │   ├── project.py     # Project + ProjectExtra（多表）
-│   │   │   └── contract.py    # Contract + ContractNode + BillingRecord
+│   │   │   └── contract.py    # Contract + ContractNode（收费节点）
 │   │   ├── schemas/
-│   │   │   ├── common.py      # PageResult[T] 泛型
+│   │   │   ├── common.py      # CamelSchema 基类 + PageResult[T] 泛型
 │   │   │   ├── project.py
 │   │   │   └── contract.py
 │   │   ├── crud/
-│   │   │   ├── base.py        # CRUDBase[T]
+│   │   │   ├── base.py        # CRUDBase[T]（过滤/排序/计数）
 │   │   │   ├── project.py     # CRUDProject（含扩展信息）
-│   │   │   └── contract.py    # CRUDContract（含补充协议）
+│   │   │   └── contract.py    # CRUDContract + ContractNode
 │   │   ├── services/
 │   │   │   ├── project_service.py   # 编排 CRUD + AI 提取
-│   │   │   └── contract_service.py  # 合同生成/审核业务
+│   │   │   ├── contract_service.py  # 合同起草/审核业务
+│   │   │   └── node_service.py      # 收费节点业务
 │   │   ├── ai/
 │   │   │   ├── base.py        # AIProvider ABC + AIMessage
 │   │   │   ├── openai_provider.py   # OpenAI 兼容（DeepSeek/Qwen/Moonshot 同构）
@@ -124,12 +125,17 @@ archsuite/
 │   │   │       ├── project_info.py
 │   │   │       └── contract_review.py
 │   │   └── utils/
+│   │       └── json.py        # AI 返回 JSON 容错解析
 │   ├── alembic/
 │   │   ├── env.py
 │   │   ├── script.py.mako
 │   │   └── versions/
 │   ├── static/                # 前端构建产物（gitignore）
 │   └── tests/
+│       ├── conftest.py        # 内存 SQLite + 依赖覆盖 + HTTP 客户端夹具
+│       ├── test_main.py       # 项目 CRUD 流程
+│       ├── test_contracts.py  # 合同/收费节点流程
+│       └── test_utils_json.py # JSON 解析工具
 └── frontend/
     ├── package.json
     ├── vite.config.ts         # base './' + /api 代理到 8000
@@ -149,7 +155,7 @@ archsuite/
         │   ├── request.ts     # axios 实例 + 拦截器
         │   ├── project.ts
         │   └── contract.ts
-        ├── types/index.ts     # Project/Contract/Billing 等接口
+        ├── types/index.ts     # Project/Contract/ContractNode 等契约类型（与后端一一对齐）
         ├── components/
         │   └── layout/
         │       ├── AppLayout.vue
@@ -168,10 +174,10 @@ archsuite/
 - **多表存储**：`Project` 主表（名称/编号/位置/类型/规模/描述等基本字段）+ `ProjectExtra` 扩展表（`field_key` / `field_value` / `ai_source`），可无限扩展字段而不改表结构。
 - **AI 自动获取**：`POST /api/v1/projects/{id}/ai-extract` → `project_service.ai_extract_info` 调用 `AIProvider`，使用 `prompts/project_info.build_extract_prompt` 让 AI 从基本字段推断用地性质、容积率、建筑限高、绿化率等扩展信息，写入 `ProjectExtra` 并标记来源。
 
-### 模块 2：商务管理（已实现骨架）
+### 模块 2：商务管理（已实现）
 - **一项目多合同**：`Contract.contract_type` ∈ {`main` 主合同, `supplement` 补充协议}；补充协议通过 `parent_contract_id` 指向主合同，形成合同树。
-- **合同流程**：`POST /contracts/{id}/generate`（AI 起草）→ `POST /contracts/{id}/review`（AI 审核条款风险，用 `prompts/contract_review.build_review_prompt`）。
-- **节点与记账**：`ContractNode`（项目节点 / 进度节点 / 收费节点）+ `BillingRecord`（收款/退款记账），均以 `contract_id` 归属。
+- **合同流程**：`POST /contracts/{id}/generate`（AI 起草正文并写回 `content_text`）→ `POST /contracts/{id}/review`（AI 审核条款风险，返回结构化 `{clause, level, suggestion}` 风险清单，用 `prompts/contract_review.build_review_prompt`）。
+- **收费记账**：`ContractNode` 收费节点（名称/占比/金额/计划与实际收款日期/状态），以 `contract_id` 归属合同；`GET/POST /nodes` 提供跨合同分页查询与创建，`GET /contracts/{id}/nodes` 按合同查全部节点。
 
 ### 模块 3–6：占位
 - 环境解析、概念构思、平面构成、空间构成路由统一指向 `Placeholder.vue`，显示"暂不实现（规划中）"。
@@ -183,15 +189,22 @@ archsuite/
 ## 6. 数据模型
 
 ```
-Project 1 ─── n ProjectExtra            # 项目多表扩展
+Project 1 ─── n ProjectExtra            # 项目多表扩展（动态键值对）
 Project 1 ─── n Contract                # 一项目多合同
 Contract (main) 1 ─── n Contract (supplement)  # 补充协议挂主合同
-Contract 1 ─── n ContractNode           # 项目/进度/收费节点
-Contract 1 ─── n BillingRecord          # 收款/退款记账
+Contract 1 ─── n ContractNode           # 收费节点（收费记账）
 ```
 
 - 主键统一 `id`（自增整数），所有表含 `TimestampMixin`（created_at / updated_at）。
-- 外键级联：删除项目级联其下合同与扩展信息（业务层显式处理，避免数据孤岛）。
+- 外键级联：删除项目级联其下合同与扩展信息，删除合同级联其下收费节点（业务层显式处理，避免数据孤岛）。
+
+### 6.1 API 数据契约（camelCase）
+
+- 所有对外 schema 继承 `CamelSchema`（`alias_generator=to_camel` + `populate_by_name` + `from_attributes`）。
+- 响应经 FastAPI `by_alias=True` 序列化为 camelCase；服务层 `model_dump()` 输出 snake_case 直传 ORM，两层互不干扰。
+- 分页统一 `PageResult[T]`：`{ list, total, page, pageSize }`。
+- 合同 `contract_type` 字段对外别名为 `type`（前端契约）。
+- 错误统一 `{ code, message, detail, path }`，由 `core/exceptions.py` 全局处理器生成。
 
 ## 7. AI 抽象层
 
@@ -212,15 +225,15 @@ app/ai/
 ## 8. 主题与设计令牌系统
 
 - **令牌集中**：`frontend/src/styles/tokens.ts` 导出 `designTokens`（亮/暗色板、字体族候选、字号/间距/圆角梯度、阴影、`BORDER_NONE` 常量）。
-- **主题覆盖**：`styles/theme.ts` 的 `generateThemeOverrides(state)` 返回 Naive UI `GlobalThemeOverrides`，覆盖 `common` 主色/圆角/字号/字体，并去除 Card / FormItem / ListItem / Tag / Input / Button / DataTable / Menu 等组件边框。
+- **主题覆盖**：`styles/theme.ts` 的 `generateThemeOverrides(state)` 返回 Naive UI `GlobalThemeOverrides`，覆盖 `common` 主色/圆角/字号/字体，并去除 Card / Tag / Input / Button / DataTable / Menu 等组件边框（键名须为 naive-ui 实际组件主题键，如 `Form` 而非 `FormItem`）。
 - **运行时切换**：`stores/theme.ts` 持有 `themeName / primaryColor / fontFamily / fontSize / borderRadius / isDark`，`ThemeSwitch.vue` 提供亮/暗按钮 + 气泡内主色/字体/字号实时调整，写入 `localStorage` 持久化并同步 `:root` CSS 变量与 `data-theme`。
 - **无边框原则**：组件不主动 `border`，分隔改用间距、留白与弱化背景；如需分隔使用 `BORDER_NONE` 或极浅半透明色。
 
 ## 9. 环境隔离与运行
 
 - **后端隔离**：`scripts/setup.sh` 在项目内创建 `.venv`，依赖装在 venv；`run.sh` 始终 `source .venv`。
-- **前端隔离**：依赖装在 `frontend/node_modules`；`build_frontend.sh` 产出 `dist` 并复制到 `backend/static/`。
-- **静态托管**：`app/main.py` 用 `StaticFiles(html=True)` 把前端 SPA 挂到根路径，API 在 `/api/v1`，单端口访问 `http://localhost:8000`。
+- **前端隔离**：依赖装在 `frontend/node_modules`；`build_frontend.sh` 产出 `dist`（后端优先托管 `../frontend/dist`，不存在时回退 `backend/static/`）。
+- **静态托管与 SPA 回退**：`app/main.py` 的 `SPAStaticFiles` 把前端挂到根路径；未命中的非 API 路径回退 `index.html`（支持前端路由刷新），`/api` 前缀返回 JSON 404 不回退。API 在 `/api/v1`，单端口访问 `http://localhost:8000`。
 - **配置**：`backend/.env`（从 `.env.example` 复制）含数据库与各 AI 厂商密钥，不提交版本库。
 
 ## 10. 扩展性

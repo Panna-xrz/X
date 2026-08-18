@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, h, type Component } from 'vue'
+import { ref, h, type VNodeChild } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { NLayoutSider, NMenu, type MenuOption } from 'naive-ui'
 
-// 简易内联 SVG 图标组件（避免引入额外图标库）
-function makeIcon(path: string): Component {
+// 简易内联 SVG 图标（渲染函数，避免引入额外图标库）
+function makeIcon(path: string): () => VNodeChild {
   return () =>
     h(
       'svg',
@@ -23,7 +23,7 @@ function makeIcon(path: string): Component {
 }
 
 // 侧栏菜单：6 个模块，项目信息与商务管理含子项
-const menuOptions = computed<MenuOption[]>(() => [
+const menuOptions: MenuOption[] = [
   {
     label: '项目信息',
     key: 'project-group',
@@ -81,7 +81,7 @@ const menuOptions = computed<MenuOption[]>(() => [
     key: '/space',
     icon: makeIcon('M3 3h7v7H3zM14 3l7 0v7h-7zM7 14l7 7 7-7z')
   }
-])
+]
 
 const route = useRoute()
 const router = useRouter()

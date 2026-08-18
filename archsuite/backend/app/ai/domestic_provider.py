@@ -6,7 +6,7 @@
 
 import httpx
 
-from app.ai.base import AIMessage, AIProvider
+from app.ai.base import AIMessage, AIProvider, wrap_ai_errors
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -27,16 +27,17 @@ class DomesticProvider(AIProvider):
         payload = {
             "model": str(kwargs.pop("model", self.model)),
             "messages": [{"role": m.role, "content": m.content} for m in messages],
-            "temperature": kwargs.pop("temperature", 0.2),
+            "temperature": float(kwargs.pop("temperature", 0.2)),
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(_DASHSCOPE_CHAT_URL, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
+        async with wrap_ai_errors(self.name):
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(_DASHSCOPE_CHAT_URL, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
         logger.info("通义千问 chat 调用完成，model=%s", payload["model"])
         # 响应结构与 OpenAI 兼容
         return data["choices"][0]["message"]["content"]

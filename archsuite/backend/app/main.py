@@ -1,11 +1,13 @@
-"""FastAPI 应用入口：组装中间件、路由、异常处理与静态托管。"""
+"""FastAPI 应用入口：组装中间件、路由、异常处理与静态托管（SPA 回退）。"""
 
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
@@ -22,6 +24,33 @@ async def lifespan(app: FastAPI):
     await create_all()
     yield
     logger.info("关闭 %s", settings.app_name)
+
+
+class SPAStaticFiles(StaticFiles):
+    """SPA 静态托管：未命中文件时回退 index.html，支持前端路由刷新。
+
+    /api 前缀的请求不回退，保持返回 JSON 404。
+    """
+
+    async def get_response(self, path: str, scope) -> object:
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return await self._fallback(path, scope)
+        if response.status_code == 404:
+            return await self._fallback(path, scope)
+        return response
+
+    async def _fallback(self, path: str, scope) -> object:
+        """未命中静态文件：API 请求返回 JSON 404，其余回退 index.html。"""
+        if path.startswith("api/") or path == "api":
+            return JSONResponse(
+                status_code=404,
+                content={"code": 404, "message": "接口不存在", "detail": None, "path": f"/{path}"},
+            )
+        return await super().get_response("index.html", scope)
 
 
 def create_app() -> FastAPI:
@@ -57,9 +86,9 @@ def create_app() -> FastAPI:
     frontend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     mount_dir = frontend_dir if os.path.isdir(frontend_dir) else static_dir
-    # 确保 static 目录存在以避免 StaticFiles 报错
+    # 确保目录存在以避免 StaticFiles 报错
     os.makedirs(mount_dir, exist_ok=True)
-    app.mount("/", StaticFiles(directory=mount_dir, html=True), name="frontend")
+    app.mount("/", SPAStaticFiles(directory=mount_dir, html=True), name="frontend")
 
     return app
 

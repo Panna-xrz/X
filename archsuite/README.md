@@ -29,15 +29,15 @@ archsuite/
 │   ├── pyproject.toml
 │   ├── .env.example
 │   ├── app/
-│   │   ├── main.py            # 入口，挂载路由 + 静态托管
+│   │   ├── main.py            # 入口，挂载路由 + SPA 静态托管
 │   │   ├── core/              # 配置 / 数据库 / 日志 / 异常
-│   │   ├── api/v1/            # 路由层（projects/contracts/billing/ai）
+│   │   ├── api/v1/            # 路由层（projects/contracts/nodes/ai）
 │   │   ├── models/            # ORM 模型层
-│   │   ├── schemas/           # Pydantic 数据契约层
+│   │   ├── schemas/           # Pydantic 数据契约层（camelCase）
 │   │   ├── crud/              # 数据访问层
 │   │   ├── services/          # 业务逻辑层
 │   │   ├── ai/                # AI 抽象层（base/factory/providers/prompts）
-│   │   └── utils/
+│   │   └── utils/             # JSON 解析等工具
 │   ├── alembic/               # 数据库迁移
 │   └── tests/
 └── frontend/                  # Vue 3 前端
@@ -57,12 +57,19 @@ archsuite/
 
 ## 功能模块
 
-1. **项目信息** — 多表存储项目基本信息与扩展信息，部分信息经 AI 自动获取
-2. **商务管理** — 合同起草/审核/管理，支持一项目多合同（主合同 + 补充协议）、项目节点、收费节点、记账
+1. **项目信息** — 多表存储项目基本信息与扩展信息（动态键值对），扩展信息可经 AI 自动提取
+2. **商务管理** — 合同管理（主合同 + 补充协议）、AI 起草合同正文、AI 审核条款风险、收费节点记账
 3. 环境解析（暂不实现，占位）
 4. 概念构思（暂不实现，占位）
 5. 平面构成（暂不实现，占位）
 6. 空间构成（暂不实现，占位）
+
+## API 契约约定
+
+- 所有响应为 camelCase JSON（snake_case 字段经 Pydantic 别名自动转换）
+- 分页统一返回 `{ list, total, page, pageSize }`，列表项内字段亦为 camelCase
+- 错误统一返回 `{ code, message, detail, path }` 与对应 HTTP 状态码
+- ID 均为自增整数（number）
 
 ## 快速开始
 
@@ -71,6 +78,13 @@ archsuite/
 ./scripts/build_frontend.sh  # 构建前端到 backend/static
 ./scripts/run.sh             # 启动 uvicorn (0.0.0.0:8000)
 # 浏览器访问 http://localhost:8000
+```
+
+## 测试
+
+```bash
+cd backend && python -m pytest tests/ -v   # 后端 API/工具测试
+cd frontend && npm run type-check          # 前端类型检查
 ```
 
 ## 文档

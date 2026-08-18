@@ -12,27 +12,29 @@ import {
   NButton,
   NSpace,
   NSpin,
-  NDescriptions,
-  NDescriptionsItem,
+  NDataTable,
+  NEmpty,
+  NAlert,
   useMessage
 } from 'naive-ui'
+import type { DataTableColumns } from 'naive-ui'
 import { useRoute } from 'vue-router'
 import { getProject, updateProject, getProjectExtra, aiExtractProjectInfo } from '@/api/project'
-import type { Project, ProjectExtra, AiExtractResult } from '@/types'
+import type { Project, AiExtractResult, ProjectExtraItem } from '@/types'
 
 const route = useRoute()
 const message = useMessage()
 
-const projectId = computed(() => (route.params.id as string) || '')
+const projectId = computed(() => Number(route.params.id) || 0)
 
 const loading = ref(false)
 const saving = ref(false)
 const aiLoading = ref(false)
 
-// 项目基本信息
+// 项目基本信息（可编辑字段白名单）
 const project = reactive<Partial<Project>>({})
-// 扩展信息
-const extra = reactive<Partial<ProjectExtra>>({})
+// 扩展信息（后端动态键值对 items）
+const extraItems = ref<ProjectExtraItem[]>([])
 // AI 提取结果
 const aiResult = ref<AiExtractResult | null>(null)
 
@@ -44,51 +46,120 @@ const statusOptions = [
   { label: '已归档', value: 'archived' }
 ]
 
-// 加载详情
+// 扩展字段键 → 中文标签
+const extraLabelMap: Record<string, string> = {
+  landArea: '用地面积',
+  buildingArea: '建筑面积',
+  floorsAbove: '地上层数',
+  floorsUnder: '地下层数',
+  heightLimit: '高度限制',
+  greenRatio: '绿地率',
+  plotRatio: '容积率',
+  designStage: '设计阶段',
+  remarks: '备注'
+}
+
+const extraColumns: DataTableColumns<ProjectExtraItem> = [
+  {
+    title: '字段',
+    key: 'fieldKey',
+    width: 140,
+    render: (row) => extraLabelMap[row.fieldKey] || row.fieldKey
+  },
+  { title: '值', key: 'fieldValue', render: (row) => row.fieldValue ?? '-' },
+  {
+    title: '来源',
+    key: 'aiSource',
+    width: 100,
+    render: (row) => row.aiSource || '手动录入'
+  }
+]
+
+// AI 解析结果表格列
+interface FieldRow {
+  key: string
+  value: string | null
+}
+
+const aiFieldColumns: DataTableColumns<FieldRow> = [
+  {
+    title: '字段',
+    key: 'key',
+    width: 140,
+    render: (row) => extraLabelMap[row.key] || row.key
+  },
+  { title: '值', key: 'value', render: (row) => row.value ?? '-' }
+]
+
+// AI 解析结果转为表格行
+const aiFieldRows = computed<FieldRow[]>(() =>
+  Object.entries(aiResult.value?.fields || {}).map(([key, value]) => ({ key, value }))
+)
+
+// 加载详情与扩展信息
 async function loadDetail() {
   if (!projectId.value) return
   loading.value = true
   try {
     const data = await getProject(projectId.value)
     Object.assign(project, data)
-    try {
-      const extraData = await getProjectExtra(projectId.value)
-      Object.assign(extra, extraData)
-    } catch {
-      // 扩展信息可能尚未生成
-    }
+    await loadExtra()
   } catch (e) {
-    message.error('加载项目详情失败')
+    message.error(e instanceof Error ? e.message : '加载项目详情失败')
   } finally {
     loading.value = false
   }
 }
 
-// 保存基本信息
+// 加载扩展信息（可能尚未生成，不阻塞）
+async function loadExtra() {
+  try {
+    const res = await getProjectExtra(projectId.value)
+    extraItems.value = res.items || []
+  } catch {
+    extraItems.value = []
+  }
+}
+
+// 保存基本信息（仅提交可编辑字段）
 async function saveBase() {
   saving.value = true
   try {
-    await updateProject(projectId.value, project)
+    await updateProject(projectId.value, {
+      name: project.name,
+      code: project.code,
+      client: project.client,
+      location: project.location,
+      type: project.type,
+      scale: project.scale,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      status: project.status,
+      description: project.description
+    })
     message.success('保存成功')
   } catch (e) {
-    message.error('保存失败')
+    message.error(e instanceof Error ? e.message : '保存失败')
   } finally {
     saving.value = false
   }
 }
 
-// AI 自动获取项目信息
+// AI 自动提取项目扩展信息
 async function aiExtract() {
   aiLoading.value = true
   try {
-    const res = await aiExtractProjectInfo(projectId.value, { source: 'auto' })
+    const res = await aiExtractProjectInfo(projectId.value)
     aiResult.value = res
-    if (res.fields) {
-      Object.assign(project, res.fields)
+    if (Object.keys(res.fields || {}).length) {
+      message.success(`AI 提取完成，共 ${Object.keys(res.fields).length} 个字段`)
+      // 提取结果已写入后端，刷新扩展信息展示
+      await loadExtra()
+    } else {
+      message.warning('AI 未能解析出结构化字段，请查看原始内容')
     }
-    message.success(`AI 提取完成（置信度 ${Math.round(res.confidence * 100)}%）`)
   } catch (e) {
-    message.error('AI 提取失败，请稍后重试')
+    message.error(e instanceof Error ? e.message : 'AI 提取失败，请稍后重试')
   } finally {
     aiLoading.value = false
   }
@@ -142,36 +213,47 @@ onMounted(() => {
           </NSpace>
         </NTabPane>
 
-        <!-- 扩展信息 -->
+        <!-- 扩展信息（动态键值对） -->
         <NTabPane name="extra" tab="扩展信息">
-          <NDescriptions label-placement="left" bordered :column="2">
-            <NDescriptionsItem label="用地面积">{{ extra.landArea ?? '-' }} ㎡</NDescriptionsItem>
-            <NDescriptionsItem label="建筑面积">{{ extra.buildingArea ?? '-' }} ㎡</NDescriptionsItem>
-            <NDescriptionsItem label="地上层数">{{ extra.floorsAbove ?? '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="地下层数">{{ extra.floorsUnder ?? '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="高度限制">{{ extra.heightLimit ?? '-' }} m</NDescriptionsItem>
-            <NDescriptionsItem label="绿地率">{{ extra.greenRatio ?? '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="容积率">{{ extra.plotRatio ?? '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="设计阶段">{{ extra.designStage ?? '-' }}</NDescriptionsItem>
-            <NDescriptionsItem label="备注" :span="2">{{ extra.remarks ?? '-' }}</NDescriptionsItem>
-          </NDescriptions>
+          <NDataTable
+            v-if="extraItems.length"
+            :columns="extraColumns"
+            :data="extraItems"
+            :bordered="false"
+            :single-line="false"
+          />
+          <NEmpty v-else description="暂无扩展信息，可通过「AI 辅助获取」自动提取" />
         </NTabPane>
 
         <!-- AI 辅助获取 -->
         <NTabPane name="ai" tab="AI 辅助获取">
           <NSpace vertical :size="16">
             <div class="ai-tip">
-              点击下方按钮，由 AI 从上传的资料或现场调研中自动解析并填充项目基本信息。
+              点击下方按钮，由 AI 根据项目基本信息自动解析用地面积、建筑面积、容积率等扩展字段并保存。
             </div>
             <NButton type="primary" :loading="aiLoading" @click="aiExtract">
               AI 自动获取
             </NButton>
             <NCard v-if="aiResult" :bordered="false" size="small" title="AI 解析结果">
-              <NDescriptions label-placement="left" :column="1" bordered>
-                <NDescriptionsItem label="置信度">{{ Math.round(aiResult.confidence * 100) }}%</NDescriptionsItem>
-                <NDescriptionsItem label="解析字段">{{ JSON.stringify(aiResult.fields) }}</NDescriptionsItem>
-                <NDescriptionsItem v-if="aiResult.raw" label="原始内容">{{ aiResult.raw }}</NDescriptionsItem>
-              </NDescriptions>
+              <NAlert v-if="!aiFieldRows.length" type="warning" :bordered="false">
+                未能解析出结构化字段
+              </NAlert>
+              <NDataTable
+                v-else
+                :columns="aiFieldColumns"
+                :data="aiFieldRows"
+                :bordered="false"
+                :single-line="false"
+              />
+              <NAlert
+                v-if="aiResult.raw"
+                type="info"
+                :bordered="false"
+                style="margin-top: 12px"
+                title="原始内容"
+              >
+                {{ aiResult.raw }}
+              </NAlert>
             </NCard>
           </NSpace>
         </NTabPane>

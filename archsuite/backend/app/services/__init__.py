@@ -1,1 +1,5 @@
-"""业务逻辑层：编排 CRUD 与 AI provider，对 API 层提供业务方法。"""
+"""业务逻辑层包：各模块服务。"""
+
+from app.services import contract_service, node_service, project_service
+
+__all__ = ["project_service", "contract_service", "node_service"]

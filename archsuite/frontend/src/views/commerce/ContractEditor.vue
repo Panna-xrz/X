@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { h, ref, reactive, onMounted, computed } from 'vue'
 import {
   NCard,
   NForm,
@@ -12,44 +12,54 @@ import {
   NButton,
   NDivider,
   NSpin,
-  NCollapse,
-  NCollapseItem,
+  NDataTable,
+  NTag,
+  NAlert,
   useMessage
 } from 'naive-ui'
+import type { DataTableColumns, SelectOption } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getContract,
   createContract,
   updateContract,
-  aiGenerateContract,
-  aiReviewContract
+  generateContract,
+  reviewContract,
+  getContracts
 } from '@/api/contract'
-import type { Contract, ContractType, ContractNode } from '@/types'
+import { getProjects } from '@/api/project'
+import type {
+  Contract,
+  ContractType,
+  ContractRiskItem
+} from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 
-const contractId = computed(() => (route.params.id as string) || '')
-const isEdit = computed(() => Boolean(contractId.value))
+const contractId = computed(() => Number(route.params.id) || 0)
+const isEdit = computed(() => contractId.value > 0)
 
 const loading = ref(false)
 const saving = ref(false)
 const genLoading = ref(false)
 const reviewLoading = ref(false)
 
-// 合同表单
-const formModel = reactive<Partial<Contract>>({
+// 合同表单（与后端 ContractPayload 契约对齐）
+const formModel = reactive({
   code: '',
   name: '',
-  type: 'main',
-  projectId: '',
-  party: '',
-  amount: 0,
+  type: 'main' as ContractType,
+  projectId: null as number | null,
+  partyA: '',
+  partyB: '',
+  amount: null as number | null,
   status: 'draft',
-  signedDate: undefined,
-  parentContractId: '',
-  remarks: ''
+  signedDate: null as string | null,
+  parentContractId: null as number | null,
+  remarks: '',
+  contentText: ''
 })
 
 const typeOptions = [
@@ -57,93 +67,188 @@ const typeOptions = [
   { label: '补充协议', value: 'supplement' }
 ]
 
-// 条款节点（AI 生成或后端返回）
-const nodes = ref<ContractNode[]>([])
-// 审核意见
-const reviewResult = ref<{ issues: string[]; suggestions: string[] } | null>(null)
+const statusOptions = [
+  { label: '草稿', value: 'draft' },
+  { label: '审核中', value: 'reviewing' },
+  { label: '已签订', value: 'signed' },
+  { label: '已终止', value: 'terminated' }
+]
+
+// 关联项目 / 主合同下拉数据
+const projectOptions = ref<SelectOption[]>([])
+const mainContractOptions = ref<SelectOption[]>([])
+
+// AI 审核结果
+const reviewResult = ref<{ risks: ContractRiskItem[]; raw: string | null } | null>(null)
+
+// 风险等级 → 标签颜色
+const levelTagMap: Record<string, 'error' | 'warning' | 'info' | 'default'> = {
+  高: 'error',
+  中: 'warning',
+  低: 'info'
+}
+
+const riskColumns: DataTableColumns<ContractRiskItem> = [
+  { title: '风险条款', key: 'clause', render: (row) => row.clause || '-' },
+  {
+    title: '等级',
+    key: 'level',
+    width: 80,
+    render: (row) => {
+      const level = row.level || '未知'
+      return levelTagMap[level]
+        ? h(NTag, { type: levelTagMap[level], size: 'small', round: true }, { default: () => level })
+        : level
+    }
+  },
+  { title: '改进建议', key: 'suggestion', render: (row) => row.suggestion || '-' }
+]
+
+// 加载关联项目下拉
+async function loadProjectOptions() {
+  try {
+    const res = await getProjects({ page: 1, pageSize: 100 })
+    projectOptions.value = (res.list || []).map((p) => ({
+      label: `${p.code} ${p.name}`,
+      value: p.id
+    }))
+  } catch {
+    projectOptions.value = []
+  }
+}
+
+// 加载主合同下拉（补充协议可选）
+async function loadMainContractOptions() {
+  try {
+    const res = await getContracts({ page: 1, pageSize: 100 })
+    mainContractOptions.value = (res.list || [])
+      .filter((c) => c.type === 'main' && c.id !== contractId.value)
+      .map((c) => ({
+        label: `${c.code} ${c.name}`,
+        value: c.id
+      }))
+  } catch {
+    mainContractOptions.value = []
+  }
+}
 
 // 加载合同详情
 async function loadDetail() {
-  if (!contractId.value) return
+  if (!isEdit.value) return
   loading.value = true
   try {
     const data = await getContract(contractId.value)
-    Object.assign(formModel, data)
+    Object.assign(formModel, {
+      code: data.code || '',
+      name: data.name || '',
+      type: data.type,
+      projectId: data.projectId,
+      partyA: data.partyA || '',
+      partyB: data.partyB || '',
+      amount: data.amount,
+      status: data.status,
+      signedDate: data.signedDate,
+      parentContractId: data.parentContractId,
+      remarks: data.remarks || '',
+      contentText: data.contentText || ''
+    })
   } catch (e) {
-    message.error('加载合同详情失败')
+    message.error(e instanceof Error ? e.message : '加载合同详情失败')
   } finally {
     loading.value = false
   }
 }
 
-// 保存（新建或更新）
-async function submit() {
+// 校验必填
+function validate(): boolean {
   if (!formModel.name) {
     message.warning('请填写合同名称')
-    return
+    return false
   }
+  if (!formModel.projectId) {
+    message.warning('请选择关联项目')
+    return false
+  }
+  return true
+}
+
+// 保存（新建或更新）
+async function submit() {
+  if (!validate()) return
   saving.value = true
   try {
+    const payload = {
+      name: formModel.name,
+      code: formModel.code,
+      type: formModel.type,
+      projectId: formModel.projectId!, // validate() 已确保非空
+      partyA: formModel.partyA || null,
+      partyB: formModel.partyB || null,
+      amount: formModel.amount,
+      status: formModel.status,
+      signedDate: formModel.signedDate,
+      parentContractId: formModel.type === 'supplement' ? formModel.parentContractId : null,
+      remarks: formModel.remarks || null,
+      contentText: formModel.contentText || null
+    }
     if (isEdit.value) {
-      await updateContract(contractId.value, formModel)
+      await updateContract(contractId.value, payload)
       message.success('保存成功')
     } else {
-      await createContract(formModel)
+      const created: Contract = await createContract(payload)
       message.success('创建成功')
-      router.push('/commerce/contracts')
+      router.replace(`/commerce/contract/edit/${created.id}`)
     }
   } catch (e) {
-    message.error('保存失败')
+    message.error(e instanceof Error ? e.message : '保存失败')
   } finally {
     saving.value = false
   }
 }
 
-// AI 起草合同条款
+// AI 起草合同正文（仅已保存合同可用）
 async function generate() {
-  if (!formModel.projectId) {
-    message.warning('请先选择关联项目')
-    return
-  }
-  if (!formModel.type) {
-    message.warning('请选择合同类型')
+  if (!isEdit.value) {
+    message.warning('请先保存合同后再起草')
     return
   }
   genLoading.value = true
   try {
-    const res = await aiGenerateContract({
-      projectId: formModel.projectId,
-      type: formModel.type as ContractType,
-      parentContractId: formModel.parentContractId
-    })
-    nodes.value = res || []
-    message.success(`AI 起草完成，共 ${nodes.value.length} 个章节`)
+    const res = await generateContract(contractId.value)
+    formModel.contentText = res.content
+    message.success('AI 起草完成，正文已回填，可编辑后保存')
   } catch (e) {
-    message.error('AI 起草失败')
+    message.error(e instanceof Error ? e.message : 'AI 起草失败')
   } finally {
     genLoading.value = false
   }
 }
 
-// AI 审核合同
+// AI 审核合同（需已有正文）
 async function review() {
   if (!isEdit.value) {
     message.warning('请先保存合同后再审核')
     return
   }
+  if (!formModel.contentText) {
+    message.warning('合同尚无正文，请先起草或录入正文')
+    return
+  }
   reviewLoading.value = true
   try {
-    const res = await aiReviewContract(contractId.value)
-    reviewResult.value = res
-    message.success('AI 审核完成')
+    const res = await reviewContract(contractId.value)
+    reviewResult.value = { risks: res.risks, raw: res.raw }
+    message.success(res.risks.length ? `AI 审核完成，发现 ${res.risks.length} 条风险` : 'AI 审核完成')
   } catch (e) {
-    message.error('AI 审核失败')
+    message.error(e instanceof Error ? e.message : 'AI 审核失败')
   } finally {
     reviewLoading.value = false
   }
 }
 
 onMounted(() => {
+  loadProjectOptions()
+  loadMainContractOptions()
   loadDetail()
 })
 </script>
@@ -152,7 +257,7 @@ onMounted(() => {
   <NCard :title="isEdit ? '合同编辑' : '新增合同'" :bordered="false" size="small">
     <NSpin :show="loading">
       <NForm label-placement="left" label-width="100">
-        <NFormItem label="合同名称">
+        <NFormItem label="合同名称" required>
           <NInput v-model:value="formModel.name" placeholder="合同名称" />
         </NFormItem>
         <NFormItem label="合同编号">
@@ -165,10 +270,10 @@ onMounted(() => {
             placeholder="主合同 / 补充协议"
           />
         </NFormItem>
-        <NFormItem label="关联项目">
+        <NFormItem label="关联项目" required>
           <NSelect
             v-model:value="formModel.projectId"
-            :options="[]"
+            :options="projectOptions"
             placeholder="请选择关联项目"
             filterable
           />
@@ -176,12 +281,17 @@ onMounted(() => {
         <NFormItem v-if="formModel.type === 'supplement'" label="主合同">
           <NSelect
             v-model:value="formModel.parentContractId"
-            :options="[]"
+            :options="mainContractOptions"
             placeholder="补充协议关联的主合同"
+            filterable
+            clearable
           />
         </NFormItem>
+        <NFormItem label="甲方">
+          <NInput v-model:value="formModel.partyA" placeholder="甲方单位" />
+        </NFormItem>
         <NFormItem label="乙方">
-          <NInput v-model:value="formModel.party" placeholder="乙方单位" />
+          <NInput v-model:value="formModel.partyB" placeholder="乙方单位" />
         </NFormItem>
         <NFormItem label="合同金额">
           <NInputNumber
@@ -189,6 +299,7 @@ onMounted(() => {
             :min="0"
             :precision="2"
             style="width: 100%"
+            placeholder="合同金额"
           />
         </NFormItem>
         <NFormItem label="签订日期">
@@ -200,90 +311,64 @@ onMounted(() => {
             style="width: 100%"
           />
         </NFormItem>
+        <NFormItem label="状态">
+          <NSelect v-model:value="formModel.status" :options="statusOptions" />
+        </NFormItem>
         <NFormItem label="备注">
           <NInput v-model:value="formModel.remarks" type="textarea" :rows="2" />
         </NFormItem>
       </NForm>
 
-      <NDivider title="AI 辅助" title-placement="left" />
+      <NDivider title="合同正文" title-placement="left">
+        <NSpace size="small">
+          <NButton size="small" type="primary" :loading="genLoading" @click="generate">
+            AI 起草正文
+          </NButton>
+          <NButton size="small" :loading="reviewLoading" @click="review">
+            AI 审核风险
+          </NButton>
+        </NSpace>
+      </NDivider>
 
-      <NSpace>
-        <NButton type="primary" :loading="genLoading" @click="generate">
-          AI 起草条款
-        </NButton>
-        <NButton :loading="reviewLoading" @click="review">
-          AI 审核
-        </NButton>
-        <NButton :loading="saving" type="primary" ghost @click="submit">
+      <NInput
+        v-model:value="formModel.contentText"
+        type="textarea"
+        :rows="14"
+        placeholder="合同正文（可点击「AI 起草正文」自动生成，支持手动编辑，随保存提交）"
+      />
+
+      <NSpace justify="end" style="margin-top: 16px">
+        <NButton :loading="saving" type="primary" @click="submit">
           {{ isEdit ? '保存' : '创建' }}
         </NButton>
       </NSpace>
 
-      <!-- AI 起草条款 -->
-      <NCollapse v-if="nodes.length" class="nodes" arrow-placement="right">
-        <NCollapseItem
-          v-for="node in nodes"
-          :key="node.id"
-          :title="node.title"
-          :name="node.id"
-        >
-          <div class="node-content">{{ node.content }}</div>
-        </NCollapseItem>
-      </NCollapse>
-
-      <!-- AI 审核结果 -->
+      <!-- AI 审核结果：风险清单 -->
       <div v-if="reviewResult" class="review-result">
-        <NCard :bordered="false" size="small" title="审核意见">
-          <div class="block">
-            <div class="block-title">问题</div>
-            <ul>
-              <li v-for="(item, i) in reviewResult.issues" :key="i">{{ item }}</li>
-              <li v-if="!reviewResult.issues.length">无</li>
-            </ul>
-          </div>
-          <div class="block">
-            <div class="block-title">建议</div>
-            <ul>
-              <li v-for="(item, i) in reviewResult.suggestions" :key="i">{{ item }}</li>
-              <li v-if="!reviewResult.suggestions.length">无</li>
-            </ul>
-          </div>
-        </NCard>
+        <NDivider title="AI 审核结果" title-placement="left" />
+        <template v-if="reviewResult.risks.length">
+          <NDataTable
+            :columns="riskColumns"
+            :data="reviewResult.risks"
+            :bordered="false"
+            :single-line="false"
+          />
+        </template>
+        <template v-else>
+          <NAlert type="success" :bordered="false">
+            未发现风险，或 AI 返回了无法结构化解析的结果
+          </NAlert>
+          <NAlert v-if="reviewResult.raw" type="info" :bordered="false" style="margin-top: 12px" title="原始内容">
+            {{ reviewResult.raw }}
+          </NAlert>
+        </template>
       </div>
     </NSpin>
   </NCard>
 </template>
 
 <style scoped lang="scss">
-.nodes {
-  margin-top: 16px;
-}
-
-.node-content {
-  color: var(--app-text-2);
-  font-size: 13px;
-  white-space: pre-wrap;
-  padding: 8px 4px;
-}
-
 .review-result {
   margin-top: 16px;
-}
-
-.block {
-  margin-bottom: 12px;
-
-  .block-title {
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--app-text-1);
-  }
-
-  ul {
-    padding-left: 20px;
-    color: var(--app-text-2);
-    font-size: 13px;
-    line-height: 1.8;
-  }
 }
 </style>

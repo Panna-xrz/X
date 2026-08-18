@@ -2,7 +2,7 @@
 
 from anthropic import AsyncAnthropic
 
-from app.ai.base import AIMessage, AIProvider
+from app.ai.base import AIMessage, AIProvider, wrap_ai_errors
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -25,12 +25,14 @@ class AnthropicProvider(AIProvider):
         payload = [{"role": m.role, "content": m.content} for m in chat_msgs]
         model = str(kwargs.pop("model", self.model))
         system_text = "\n".join(system_msgs) if system_msgs else None
-        resp = await self.client.messages.create(
-            model=model,
-            max_tokens=int(kwargs.pop("max_tokens", 2048)),
-            system=system_text,
-            messages=payload,
-        )
+        max_tokens = int(kwargs.pop("max_tokens", 2048))
+        async with wrap_ai_errors(self.name):
+            resp = await self.client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system_text,
+                messages=payload,
+            )
         logger.info("Anthropic chat 调用完成，model=%s", model)
         # 提取文本块
         text_parts = [block.text for block in resp.content if hasattr(block, "text")]
