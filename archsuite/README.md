@@ -31,8 +31,8 @@ archsuite/
 │   ├── app/
 │   │   ├── main.py            # 入口，挂载路由 + SPA 静态托管
 │   │   ├── core/              # 配置 / 数据库 / 日志 / 异常
-│   │   ├── api/v1/            # 路由层（projects/contracts/nodes/ai）
-│   │   ├── models/            # ORM 模型层
+│   │   ├── api/v1/            # 路由层（projects/contracts/nodes/contacts/ai）
+│   │   ├── models/            # ORM 模型层（project/contract/contact/project_detail）
 │   │   ├── schemas/           # Pydantic 数据契约层（camelCase）
 │   │   ├── crud/              # 数据访问层
 │   │   ├── services/          # 业务逻辑层
@@ -47,22 +47,40 @@ archsuite/
         ├── main.ts
         ├── App.vue
         ├── router/            # 路由
-        ├── stores/            # Pinia（theme 等）
+        ├── stores/            # Pinia（project 当前项目状态 / theme）
         ├── styles/            # 设计令牌 / 主题覆盖 / 全局样式
-        ├── api/               # 接口请求层
-        ├── types/            # TS 类型
-        ├── components/layout/ # 主布局 / 侧栏 / 顶栏 / 主题切换
-        └── views/             # 页面（project/commerce/placeholder）
+        ├── api/               # 接口请求层（project/contract/contact/request）
+        ├── types/             # TS 类型（与后端 camelCase 契约一一对齐）
+        ├── components/        # 布局（IconBar/ProjectSwitcher）/ 图标组件 / 高德地图
+        └── views/             # 页面（project/commerce/settings/placeholder）
 ```
 
 ## 功能模块
 
-1. **项目信息** — 多表存储项目基本信息与扩展信息（动态键值对），扩展信息可经 AI 自动提取
-2. **商务管理** — 合同管理（主合同 + 补充协议）、AI 起草合同正文、AI 审核条款风险、收费节点记账
+1. **项目信息** — 全生命周期项目数据管理，6 个子项：
+   - 基本信息（名称/编号/地址/类型/阶段/委托甲方）
+   - 指标信息（用地性质/场地面积/容积率/绿地率/建筑密度/停车位）
+   - 场地周边（高德地图选点/经纬度/200m·500m·2000m范围/道路/自然景观/交通）
+   - 物理环境（气候区/主导风向/日照/降水量/地下水位/海拔/温度）
+   - 人文环境（文化符号/地域建筑符号/城市色彩/风俗/历史文化）
+   - 建筑立项（每个建筑单体：性质/功能/层数/高度/面积）
+2. **商务管理** — 5 个子项：
+   - 联系单（委方甲方联系人 + 项目小组联系人）
+   - 合同预览（正文展示 + 下载）
+   - 合同草拟（内置模板 AI 起草 + 上传参考合同 AI 生成）
+   - 合同审查（AI 审核条款风险，结构化风险清单标注）
+   - 合同管理（合同列表 + 收费节点 CRUD）
 3. 环境解析（暂不实现，占位）
 4. 概念构思（暂不实现，占位）
 5. 平面构成（暂不实现，占位）
 6. 空间构成（暂不实现，占位）
+
+## 前端布局
+
+- 左侧 64px 图标栏：顶部项目切换器（选择/新建/删除），6 个模块 SVG 图标 + 底部设置
+- 点击图标切换主内容区，当前模块图标高亮
+- 所有页面基于当前选中项目操作，状态持久化到 localStorage
+- 高德地图 Key 在设置页配置（存 localStorage）
 
 ## API 契约约定
 
@@ -83,8 +101,9 @@ archsuite/
 ## 测试
 
 ```bash
-cd backend && python -m pytest tests/ -v   # 后端 API/工具测试
+cd backend && python -m pytest tests/ -v   # 后端 26 个测试（API/工具/项目子项/联系单）
 cd frontend && npm run type-check          # 前端类型检查
+cd frontend && npm run build               # 前端构建
 ```
 
 ## 文档

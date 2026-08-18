@@ -16,6 +16,9 @@ class ProjectBase(CamelSchema):
     location: str | None = Field(None, max_length=255, description="项目地点")
     type: str | None = Field(None, max_length=100, description="项目类型")
     scale: str | None = Field(None, max_length=255, description="建设规模")
+    phase: str | None = Field(None, max_length=100, description="项目阶段")
+    longitude: float | None = Field(None, description="经度")
+    latitude: float | None = Field(None, description="纬度")
     start_date: date | None = Field(None, description="开工日期")
     end_date: date | None = Field(None, description="竣工日期")
     status: str = Field("draft", max_length=50, description="项目状态")
@@ -35,6 +38,9 @@ class ProjectUpdate(CamelSchema):
     location: str | None = Field(None, max_length=255)
     type: str | None = Field(None, max_length=100)
     scale: str | None = Field(None, max_length=255)
+    phase: str | None = Field(None, max_length=100)
+    longitude: float | None = None
+    latitude: float | None = None
     start_date: date | None = None
     end_date: date | None = None
     status: str | None = Field(None, max_length=50)
