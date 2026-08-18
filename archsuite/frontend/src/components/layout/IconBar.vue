@@ -29,8 +29,8 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'selectModule', key: ModuleKey): void
   (e: 'selectProject', id: number): void
-  (e: 'createProject', payload: { name: string; code: string; client?: string; location?: string; type?: string }): void
-  (e: 'deleteProject'): void
+  (e: 'createProject', payload: { name: string; code: string; type?: string }): void
+  (e: 'deleteProject', id: number): void
 }>()
 
 // 模块列表
@@ -63,7 +63,7 @@ function onSelect(key: ModuleKey) {
         :current-project-id="currentProjectId"
         @select-project="(id) => emit('selectProject', id)"
         @create-project="(payload) => emit('createProject', payload)"
-        @delete-project="() => emit('deleteProject')"
+        @delete-project="(id) => emit('deleteProject', id)"
       />
     </div>
 
@@ -113,7 +113,7 @@ function onSelect(key: ModuleKey) {
 .icon-bar {
   width: 64px;
   height: 100vh;
-  background: #1f1f23;
+  background: var(--app-rail-bg);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -124,7 +124,7 @@ function onSelect(key: ModuleKey) {
 }
 
 .bar-top {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--app-rail-border);
 }
 
 .bar-middle {
@@ -137,7 +137,7 @@ function onSelect(key: ModuleKey) {
 }
 
 .bar-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--app-rail-border);
   padding: 12px 0;
   display: flex;
   justify-content: center;
@@ -153,18 +153,18 @@ function onSelect(key: ModuleKey) {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: #ffffff7f;
+  color: var(--app-rail-text);
   cursor: pointer;
   transition: background 0.18s, color 0.18s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffffd9;
+    background: var(--app-rail-hover-bg);
+    color: var(--app-rail-text-hover);
   }
 
   &.active {
-    background: rgba(32, 128, 240, 0.18);
-    color: #fff;
+    background: color-mix(in srgb, var(--app-primary) 18%, transparent);
+    color: var(--app-rail-text-active);
 
     // 左侧竖线
     &::before {

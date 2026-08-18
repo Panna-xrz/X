@@ -238,7 +238,7 @@ onBeforeUnmount(() => {
   width: 100%;
   border-radius: 8px;
   overflow: hidden;
-  background: #e8eaf0;
+  background: var(--app-card-bg);
 }
 
 .info-bar {
