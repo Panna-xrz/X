@@ -1,5 +1,7 @@
 """合同业务服务：编排 CRUD + AI 起草/审核。"""
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.ai.factory import get_provider
 from app.ai.prompts.contract_review import build_review_prompt
 from app.core.exceptions import NotFoundError
