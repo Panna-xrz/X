@@ -17,7 +17,7 @@ from app.services import contract_service, node_service
 router = APIRouter(prefix="/contracts", tags=["商务管理"])
 
 
-@router.get("/", response_model=PageResult[ContractOut])
+@router.get("", response_model=PageResult[ContractOut])
 async def list_contracts(
     db: DbSession,
     project_id: int | None = Query(None, alias="projectId", description="按项目过滤"),
@@ -30,7 +30,7 @@ async def list_contracts(
     )
 
 
-@router.post("/", response_model=ContractOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ContractOut, status_code=status.HTTP_201_CREATED)
 async def create_contract(payload: ContractCreate, db: DbSession) -> ContractOut:
     """创建合同。"""
     contract = await contract_service.create(db, payload)

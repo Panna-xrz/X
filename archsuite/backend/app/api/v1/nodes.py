@@ -10,7 +10,7 @@ from app.services import node_service
 router = APIRouter(prefix="/nodes", tags=["收费记账"])
 
 
-@router.get("/", response_model=PageResult[ContractNodeOut])
+@router.get("", response_model=PageResult[ContractNodeOut])
 async def list_nodes(
     db: DbSession,
     contract_id: int | None = Query(None, alias="contractId", description="按合同过滤"),
@@ -23,7 +23,7 @@ async def list_nodes(
     )
 
 
-@router.post("/", response_model=ContractNodeOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ContractNodeOut, status_code=status.HTTP_201_CREATED)
 async def create_node(payload: ContractNodeCreate, db: DbSession) -> ContractNodeOut:
     """创建收费节点。"""
     node = await node_service.create(db, payload)

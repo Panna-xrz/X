@@ -16,7 +16,7 @@ from app.services import project_service
 router = APIRouter(prefix="/projects", tags=["项目信息"])
 
 
-@router.get("/", response_model=PageResult[ProjectOut])
+@router.get("", response_model=PageResult[ProjectOut])
 async def list_projects(
     db: DbSession,
     page: int = Query(1, ge=1, description="页码，从1开始"),
@@ -26,7 +26,7 @@ async def list_projects(
     return await project_service.list_(db, page=page, page_size=page_size)
 
 
-@router.post("/", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
 async def create_project(payload: ProjectCreate, db: DbSession) -> ProjectOut:
     """创建项目。"""
     project = await project_service.create(db, payload)

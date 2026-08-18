@@ -3,7 +3,7 @@
 
 async def _create_project(client: AsyncClient) -> int:
     """创建测试项目并返回 ID。"""
-    resp = await client.post("/api/v1/projects/", json={"name": "项目A", "code": "PA"})
+    resp = await client.post("/api/v1/projects", json={"name": "项目A", "code": "PA"})
     assert resp.status_code == 201
     return resp.json()["id"]
 
@@ -11,7 +11,7 @@ async def _create_project(client: AsyncClient) -> int:
 async def _create_contract(client: AsyncClient, project_id: int) -> int:
     """创建测试合同并返回 ID。"""
     resp = await client.post(
-        "/api/v1/contracts/",
+        "/api/v1/contracts",
         json={"name": "设计主合同", "type": "main", "projectId": project_id, "amount": 1000000},
     )
     assert resp.status_code == 201, resp.text
@@ -38,7 +38,7 @@ async def test_contract_crud_flow(client: AsyncClient) -> None:
     assert resp.json()["amount"] == 2000000
 
     # 列表过滤 projectId
-    resp = await client.get(f"/api/v1/contracts/?projectId={pid}")
+    resp = await client.get(f"/api/v1/contracts?projectId={pid}")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
 
@@ -56,7 +56,7 @@ async def test_contract_node_flow(client: AsyncClient) -> None:
 
     # 创建节点
     resp = await client.post(
-        "/api/v1/nodes/",
+        "/api/v1/nodes",
         json={
             "name": "方案设计款",
             "ratio": 30,
@@ -78,7 +78,7 @@ async def test_contract_node_flow(client: AsyncClient) -> None:
     assert len(resp.json()) == 1
 
     # 跨合同分页查询（contractId 过滤）
-    resp = await client.get(f"/api/v1/nodes/?contractId={cid}&page=1&pageSize=10")
+    resp = await client.get(f"/api/v1/nodes?contractId={cid}&page=1&pageSize=10")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
 
@@ -95,7 +95,7 @@ async def test_contract_node_flow(client: AsyncClient) -> None:
 async def test_node_create_with_missing_contract_404(client: AsyncClient) -> None:
     """为不存在的合同创建节点应返回 404。"""
     resp = await client.post(
-        "/api/v1/nodes/",
+        "/api/v1/nodes",
         json={"name": "无效节点", "contractId": 99999},
     )
     assert resp.status_code == 404
