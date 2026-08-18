@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -36,9 +36,39 @@ class Project(Base, TimestampMixin):
     )
     # 项目描述
     description: Mapped[str | None] = mapped_column(Text, nullable=True, comment="项目描述")
+    # 项目阶段（概念设计/方案设计/初步设计/施工图设计/施工配合/竣工）
+    phase: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="项目阶段")
+    # 经度（高德坐标系 GCJ-02）
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True, comment="经度")
+    # 纬度（高德坐标系 GCJ-02）
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True, comment="纬度")
 
     # 扩展信息（多表关联）
     extras: Mapped[list["ProjectExtra"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    # 指标信息（1:1）
+    metric: Mapped["ProjectMetric | None"] = relationship(  # noqa: F821
+        back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )
+    # 场地周边（1:1）
+    surrounding: Mapped["ProjectSurrounding | None"] = relationship(  # noqa: F821
+        back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )
+    # 物理环境（1:1）
+    physical: Mapped["ProjectPhysical | None"] = relationship(  # noqa: F821
+        back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )
+    # 人文环境（1:1）
+    cultural: Mapped["ProjectCultural | None"] = relationship(  # noqa: F821
+        back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )
+    # 建筑单体（1:N）
+    buildings: Mapped[list["ProjectBuilding"]] = relationship(  # noqa: F821
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    # 联系单（1:N）
+    contacts: Mapped[list["ContactPerson"]] = relationship(  # noqa: F821
         back_populates="project", cascade="all, delete-orphan"
     )
     # 关联合同（一对多）

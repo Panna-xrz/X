@@ -57,9 +57,9 @@ ArchSuite 面向建筑设计单位，提供"项目信息 → 商务管理 → �
 ┌──────────────────────────────────────────────┐
 │  视图层   src/views/<module>/*.vue           │  页面与交互，组合式 API
 ├──────────────────────────────────────────────┤
-│  布局层   src/components/layout/*.vue         │  主布局 / 侧栏 / 顶栏 / 主题切换
+│  布局层   src/components/layout/*.vue         │  IconBar (64px) / ProjectSwitcher / AppLayout
 ├──────────────────────────────────────────────┤
-│  状态层   src/stores/*.ts                    │  Pinia store（theme / 业务状态）
+│  状态层   src/stores/*.ts                    │  Pinia store（project 当前项目 / theme）
 ├──────────────────────────────────────────────┤
 │  接口层   src/api/*.ts                       │  axios 封装与按模块拆分接口
 ├──────────────────────────────────────────────┤
@@ -170,14 +170,23 @@ archsuite/
 
 ## 5. 业务模块设计
 
-### 模块 1：项目信息（已实现骨架）
-- **多表存储**：`Project` 主表（名称/编号/位置/类型/规模/描述等基本字段）+ `ProjectExtra` 扩展表（`field_key` / `field_value` / `ai_source`），可无限扩展字段而不改表结构。
-- **AI 自动获取**：`POST /api/v1/projects/{id}/ai-extract` → `project_service.ai_extract_info` 调用 `AIProvider`，使用 `prompts/project_info.build_extract_prompt` 让 AI 从基本字段推断用地性质、容积率、建筑限高、绿化率等扩展信息，写入 `ProjectExtra` 并标记来源。
+### 模块 1：项目信息（已实现）
+- **多表存储**：`Project` 主表（名称/编号/位置/类型/阶段/经纬度等）+ 5 个 1:1 子表 + 1 个 1:N 子表：
+  - `ProjectMetric`（指标：用地性质/场地面积/容积率/绿地率/建筑密度/停车位）
+  - `ProjectSurrounding`（场地周边：经纬度/200m·500m·2000m范围/道路/自然景观/交通）
+  - `ProjectPhysical`（物理环境：气候区/风向/日照/降水量/地下水位/海拔/温度）
+  - `ProjectCultural`（人文环境：文化符号/地域建筑/色彩/风俗/历史文化）
+  - `ProjectBuilding`（建筑单体 1:N：编号/名称/性质/功能/层数/高度/面积）
+- **1:1 upsert 语义**：`PUT /projects/{id}/metric|surrounding|physical|cultural`，存在则更新，否则创建。
+- **建筑单体 CRUD**：`GET/POST /projects/{id}/buildings`，`PUT/DELETE /projects/{id}/buildings/{bid}`。
+- **AI 自动获取**：`POST /projects/{id}/ai-extract` → 调用 `AIProvider` 从基本字段推断扩展信息，写入 `ProjectExtra` 并标记来源。
+- **高德地图**：前端 `AMapPicker.vue` 动态加载高德 JS API 2.0，支持选点/逆地理编码，Key 存 localStorage。
 
 ### 模块 2：商务管理（已实现）
-- **一项目多合同**：`Contract.contract_type` ∈ {`main` 主合同, `supplement` 补充协议}；补充协议通过 `parent_contract_id` 指向主合同，形成合同树。
-- **合同流程**：`POST /contracts/{id}/generate`（AI 起草正文并写回 `content_text`）→ `POST /contracts/{id}/review`（AI 审核条款风险，返回结构化 `{clause, level, suggestion}` 风险清单，用 `prompts/contract_review.build_review_prompt`）。
-- **收费记账**：`ContractNode` 收费节点（名称/占比/金额/计划与实际收款日期/状态），以 `contract_id` 归属合同；`GET/POST /nodes` 提供跨合同分页查询与创建，`GET /contracts/{id}/nodes` 按合同查全部节点。
+- **联系单**：`ContactPerson`（委方/小组），`contact_type` 区分，`GET/POST/PUT/DELETE /contacts?projectId=&contactType=`。
+- **一项目多合同**：`Contract.contract_type` ∈ {`main` 主合同, `supplement` 补充协议}；补充协议通过 `parent_contract_id` 指向主合同。
+- **合同流程**：`POST /contracts/{id}/generate`（AI 起草正文并写回 `content_text`）→ `POST /contracts/{id}/review`（AI 审核条款风险，返回结构化 `{clause, level, suggestion}` 风险清单）。
+- **收费记账**：`ContractNode` 收费节点，`GET/POST /nodes` 跨合同分页，`GET /contracts/{id}/nodes` 按合同查全部。
 
 ### 模块 3–6：占位
 - 环境解析、概念构思、平面构成、空间构成路由统一指向 `Placeholder.vue`，显示"暂不实现（规划中）"。
@@ -190,13 +199,20 @@ archsuite/
 
 ```
 Project 1 ─── n ProjectExtra            # 项目多表扩展（动态键值对）
+Project 1 ── 1 ProjectMetric           # 指标信息
+Project 1 ── 1 ProjectSurrounding       # 场地周边
+Project 1 ── 1 ProjectPhysical          # 物理环境
+Project 1 ── 1 ProjectCultural          # 人文环境
+Project 1 ─── n ProjectBuilding         # 建筑单体（1:N）
+Project 1 ─── n ContactPerson           # 联系单（委方/小组）
 Project 1 ─── n Contract                # 一项目多合同
 Contract (main) 1 ─── n Contract (supplement)  # 补充协议挂主合同
 Contract 1 ─── n ContractNode           # 收费节点（收费记账）
 ```
 
 - 主键统一 `id`（自增整数），所有表含 `TimestampMixin`（created_at / updated_at）。
-- 外键级联：删除项目级联其下合同与扩展信息，删除合同级联其下收费节点（业务层显式处理，避免数据孤岛）。
+- 外键级联：删除项目级联其下全部子表（指标/周边/物理/人文/建筑/联系单/合同/扩展信息），删除合同级联其下收费节点。
+- 1:1 关系表（metric/surrounding/physical/cultural）在 project_id 上有 unique 索引。
 
 ### 6.1 API 数据契约（camelCase）
 

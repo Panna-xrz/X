@@ -6,123 +6,74 @@ import type {
   ContractGenerateResult,
   ContractReviewResult,
   PageResult,
-  ApiResponse
 } from '@/types'
+
+function unwrap<T>(p: Promise<any>): Promise<T> {
+  return p.then((res: any) => res as unknown as T)
+}
 
 // 合同可编辑字段
 export type ContractPayload = Partial<
   Pick<
     Contract,
-    | 'name'
-    | 'code'
-    | 'type'
-    | 'projectId'
-    | 'partyA'
-    | 'partyB'
-    | 'amount'
-    | 'signedDate'
-    | 'status'
-    | 'contentText'
-    | 'remarks'
-    | 'parentContractId'
+    | 'name' | 'code' | 'type' | 'projectId' | 'partyA' | 'partyB'
+    | 'amount' | 'signedDate' | 'status' | 'contentText' | 'remarks' | 'parentContractId'
   >
 >
 
-// 获取合同分页列表（可按项目过滤）
-export function getContracts(params?: {
-  projectId?: number
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<Contract>> {
-  return request
-    .get<ApiResponse<PageResult<Contract>>>('/contracts', { params })
-    .then((res) => res as unknown as PageResult<Contract>)
+// 合同 CRUD
+export function getContracts(params?: { projectId?: number; page?: number; pageSize?: number }): Promise<PageResult<Contract>> {
+  return unwrap(request.get('/contracts', { params }))
 }
 
-// 创建合同（name/projectId 必填）
-export function createContract(
-  payload: ContractPayload & { name: string; projectId: number; type?: ContractType }
-): Promise<Contract> {
-  return request
-    .post<ApiResponse<Contract>>('/contracts', payload)
-    .then((res) => res as unknown as Contract)
+export function createContract(payload: ContractPayload & { name: string; projectId: number; type?: ContractType }): Promise<Contract> {
+  return unwrap(request.post('/contracts', payload))
 }
 
-// 获取合同详情
 export function getContract(id: number): Promise<Contract> {
-  return request
-    .get<ApiResponse<Contract>>(`/contracts/${id}`)
-    .then((res) => res as unknown as Contract)
+  return unwrap(request.get(`/contracts/${id}`))
 }
 
-// 更新合同（仅更新传入字段）
 export function updateContract(id: number, payload: ContractPayload): Promise<Contract> {
-  return request
-    .put<ApiResponse<Contract>>(`/contracts/${id}`, payload)
-    .then((res) => res as unknown as Contract)
+  return unwrap(request.put(`/contracts/${id}`, payload))
 }
 
-// 删除合同（级联删除收费节点）
 export function deleteContract(id: number): Promise<void> {
-  return request.delete<ApiResponse<void>>(`/contracts/${id}`).then(() => undefined)
+  return unwrap(request.delete(`/contracts/${id}`))
 }
 
-// 获取合同的全部收费节点（按计划日期升序）
-export function getContractNodes(id: number): Promise<ContractNode[]> {
-  return request
-    .get<ApiResponse<ContractNode[]>>(`/contracts/${id}/nodes`)
-    .then((res) => res as unknown as ContractNode[])
-}
-
-// AI 起草合同正文（生成后写回合同 contentText）
+// 合同正文生成/审核/下载
 export function generateContract(id: number): Promise<ContractGenerateResult> {
-  return request
-    .post<ApiResponse<ContractGenerateResult>>(`/contracts/${id}/generate`)
-    .then((res) => res as unknown as ContractGenerateResult)
+  return unwrap(request.post(`/contracts/${id}/generate`))
 }
 
-// AI 审核合同条款风险（返回结构化风险清单）
 export function reviewContract(id: number): Promise<ContractReviewResult> {
-  return request
-    .post<ApiResponse<ContractReviewResult>>(`/contracts/${id}/review`)
-    .then((res) => res as unknown as ContractReviewResult)
+  return unwrap(request.post(`/contracts/${id}/review`))
 }
 
-// ===== 收费节点（/nodes）=====
-
-// 获取收费节点分页列表（跨合同，可按 contractId 过滤）
-export function getNodes(params?: {
-  contractId?: number
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<ContractNode>> {
-  return request
-    .get<ApiResponse<PageResult<ContractNode>>>('/nodes', { params })
-    .then((res) => res as unknown as PageResult<ContractNode>)
+export function downloadContract(id: number): Promise<Blob> {
+  return request.get(`/contracts/${id}/download`, { responseType: 'blob' }).then((res: any) => res as unknown as Blob)
 }
 
-// 收费节点可编辑字段
-export type NodePayload = Partial<
-  Pick<ContractNode, 'name' | 'ratio' | 'amount' | 'planDate' | 'actualDate' | 'status' | 'remarks'>
->
-
-// 创建收费节点
-export function createNode(
-  payload: NodePayload & { name: string; contractId: number }
-): Promise<ContractNode> {
-  return request
-    .post<ApiResponse<ContractNode>>('/nodes', payload)
-    .then((res) => res as unknown as ContractNode)
+// 收费节点
+export function getContractNodes(id: number): Promise<ContractNode[]> {
+  return unwrap(request.get(`/contracts/${id}/nodes`))
 }
 
-// 更新收费节点（仅更新传入字段）
+export type NodePayload = Partial<Pick<ContractNode, 'name' | 'ratio' | 'amount' | 'planDate' | 'actualDate' | 'status' | 'remarks'>>
+
+export function getNodes(params?: { contractId?: number; page?: number; pageSize?: number }): Promise<PageResult<ContractNode>> {
+  return unwrap(request.get('/nodes', { params }))
+}
+
+export function createNode(payload: NodePayload & { name: string; contractId: number }): Promise<ContractNode> {
+  return unwrap(request.post('/nodes', payload))
+}
+
 export function updateNode(id: number, payload: NodePayload): Promise<ContractNode> {
-  return request
-    .put<ApiResponse<ContractNode>>(`/nodes/${id}`, payload)
-    .then((res) => res as unknown as ContractNode)
+  return unwrap(request.put(`/nodes/${id}`, payload))
 }
 
-// 删除收费节点
 export function deleteNode(id: number): Promise<void> {
-  return request.delete<ApiResponse<void>>(`/nodes/${id}`).then(() => undefined)
+  return unwrap(request.delete(`/nodes/${id}`))
 }

@@ -1,63 +1,93 @@
 import request from './request'
-import type {
-  Project,
-  ProjectExtraResponse,
-  PageResult,
-  AiExtractResult,
-  ApiResponse
-} from '@/types'
+import type { PageResult, ApiResponse } from '@/types'
 
-// 获取项目分页列表
-export function getProjects(params?: {
-  page?: number
-  pageSize?: number
-}): Promise<PageResult<Project>> {
-  return request
-    .get<ApiResponse<PageResult<Project>>>('/projects', { params })
-    .then((res) => res as unknown as PageResult<Project>)
+// 统一解包辅助：后端返回裸数据体，拦截器已处理异常
+function unwrap<T>(p: Promise<{ data: T }>): Promise<T> {
+  return p.then((res: any) => res as unknown as T)
 }
 
-// 创建项目
-export function createProject(
-  payload: Partial<Pick<Project, 'name' | 'code' | 'client' | 'location' | 'type' | 'scale' | 'startDate' | 'endDate' | 'status' | 'description'>>
-): Promise<Project> {
-  return request
-    .post<ApiResponse<Project>>('/projects', payload)
-    .then((res) => res as unknown as Project)
+// ============ 项目 CRUD ============
+
+export function getProjects(params?: { page?: number; pageSize?: number }): Promise<PageResult<import('@/types').Project>> {
+  return unwrap(request.get('/projects', { params }))
 }
 
-// 获取项目详情
-export function getProject(id: number): Promise<Project> {
-  return request
-    .get<ApiResponse<Project>>(`/projects/${id}`)
-    .then((res) => res as unknown as Project)
+export function createProject(payload: Partial<import('@/types').Project> & { name: string; code: string }): Promise<import('@/types').Project> {
+  return unwrap(request.post('/projects', payload))
 }
 
-// 更新项目（仅更新传入字段）
-export function updateProject(
-  id: number,
-  payload: Partial<Pick<Project, 'name' | 'code' | 'client' | 'location' | 'type' | 'scale' | 'startDate' | 'endDate' | 'status' | 'description'>>
-): Promise<Project> {
-  return request
-    .put<ApiResponse<Project>>(`/projects/${id}`, payload)
-    .then((res) => res as unknown as Project)
+export function getProject(id: number): Promise<import('@/types').Project> {
+  return unwrap(request.get(`/projects/${id}`))
 }
 
-// 删除项目
+export function updateProject(id: number, payload: Partial<import('@/types').Project>): Promise<import('@/types').Project> {
+  return unwrap(request.put(`/projects/${id}`, payload))
+}
+
 export function deleteProject(id: number): Promise<void> {
-  return request.delete<ApiResponse<void>>(`/projects/${id}`).then(() => undefined)
+  return unwrap(request.delete(`/projects/${id}`))
 }
 
-// 获取项目扩展信息（动态键值对：items 列表 + fields 对象）
-export function getProjectExtra(id: number): Promise<ProjectExtraResponse> {
-  return request
-    .get<ApiResponse<ProjectExtraResponse>>(`/projects/${id}/extra`)
-    .then((res) => res as unknown as ProjectExtraResponse)
+// ============ 项目子项 ============
+
+// 指标信息
+export function getProjectMetric(id: number): Promise<import('@/types').ProjectMetric> {
+  return unwrap(request.get(`/projects/${id}/metric`))
 }
 
-// AI 自动提取项目扩展信息（结果同时写回后端）
-export function aiExtractProjectInfo(id: number): Promise<AiExtractResult> {
-  return request
-    .post<ApiResponse<AiExtractResult>>(`/projects/${id}/ai-extract`)
-    .then((res) => res as unknown as AiExtractResult)
+export function upsertProjectMetric(id: number, payload: Partial<import('@/types').ProjectMetric>): Promise<import('@/types').ProjectMetric> {
+  return unwrap(request.put(`/projects/${id}/metric`, { ...payload, projectId: id }))
+}
+
+// 场地周边
+export function getProjectSurrounding(id: number): Promise<import('@/types').ProjectSurrounding> {
+  return unwrap(request.get(`/projects/${id}/surrounding`))
+}
+
+export function upsertProjectSurrounding(id: number, payload: Partial<import('@/types').ProjectSurrounding>): Promise<import('@/types').ProjectSurrounding> {
+  return unwrap(request.put(`/projects/${id}/surrounding`, { ...payload, projectId: id }))
+}
+
+// 物理环境
+export function getProjectPhysical(id: number): Promise<import('@/types').ProjectPhysical> {
+  return unwrap(request.get(`/projects/${id}/physical`))
+}
+
+export function upsertProjectPhysical(id: number, payload: Partial<import('@/types').ProjectPhysical>): Promise<import('@/types').ProjectPhysical> {
+  return unwrap(request.put(`/projects/${id}/physical`, { ...payload, projectId: id }))
+}
+
+// 人文环境
+export function getProjectCultural(id: number): Promise<import('@/types').ProjectCultural> {
+  return unwrap(request.get(`/projects/${id}/cultural`))
+}
+
+export function upsertProjectCultural(id: number, payload: Partial<import('@/types').ProjectCultural>): Promise<import('@/types').ProjectCultural> {
+  return unwrap(request.put(`/projects/${id}/cultural`, { ...payload, projectId: id }))
+}
+
+// 建筑单体
+export function getProjectBuildings(id: number): Promise<import('@/types').ProjectBuilding[]> {
+  return unwrap(request.get(`/projects/${id}/buildings`))
+}
+
+export function createProjectBuilding(projectId: number, payload: Partial<import('@/types').ProjectBuilding> & { name: string }): Promise<import('@/types').ProjectBuilding> {
+  return unwrap(request.post(`/projects/${projectId}/buildings`, { ...payload, projectId }))
+}
+
+export function updateProjectBuilding(projectId: number, buildingId: number, payload: Partial<import('@/types').ProjectBuilding>): Promise<import('@/types').ProjectBuilding> {
+  return unwrap(request.put(`/projects/${projectId}/buildings/${buildingId}`, payload))
+}
+
+export function deleteProjectBuilding(projectId: number, buildingId: number): Promise<void> {
+  return unwrap(request.delete(`/projects/${projectId}/buildings/${buildingId}`))
+}
+
+// 扩展信息 + AI 提取
+export function getProjectExtra(id: number): Promise<import('@/types').ProjectExtraResponse> {
+  return unwrap(request.get(`/projects/${id}/extra`))
+}
+
+export function aiExtractProjectInfo(id: number): Promise<import('@/types').AiExtractResult> {
+  return unwrap(request.post(`/projects/${id}/ai-extract`))
 }

@@ -9,8 +9,8 @@ async def test_health(client: AsyncClient) -> None:
 
 
 async def test_list_projects_returns_200(client: AsyncClient) -> None:
-    """GET /api/v1/projects/ 应返回 200 且为分页 camelCase 结构。"""
-    resp = await client.get("/api/v1/projects/")
+    """GET /api/v1/projects（无尾斜杠）应返回 200 且为分页 camelCase 结构。"""
+    resp = await client.get("/api/v1/projects")
     assert resp.status_code == 200
     data = resp.json()
     # 分页契约：list / total / page / pageSize
@@ -24,7 +24,7 @@ async def test_project_crud_flow(client: AsyncClient) -> None:
     """项目创建-查询-更新-删除 全流程。"""
     # 创建
     payload = {"name": "测试项目", "code": "P-001", "client": "某地产"}
-    resp = await client.post("/api/v1/projects/", json=payload)
+    resp = await client.post("/api/v1/projects", json=payload)
     assert resp.status_code == 201, resp.text
     created = resp.json()
     assert created["name"] == "测试项目"
@@ -44,7 +44,7 @@ async def test_project_crud_flow(client: AsyncClient) -> None:
     assert resp.json()["name"] == "测试项目"  # 未传字段保持不变
 
     # 列表包含新项目
-    resp = await client.get("/api/v1/projects/")
+    resp = await client.get("/api/v1/projects")
     assert resp.json()["total"] >= 1
 
     # 删除

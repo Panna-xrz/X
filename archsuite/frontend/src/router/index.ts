@@ -1,58 +1,36 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-// 路由表：6 个业务模块
+// 路由表：模块化结构（IconBar 模式）
+// - /project → 项目信息模块（内含 Tab）
+// - /commerce → 商务管理模块（内含 Tab） + 合同编辑独立页
+// - /settings → 设置页
+// - /env /concept /plan /space → 占位页
+// - / → 重定向到 /project
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/project/list'
+    redirect: '/project'
   },
   // 1. 项目信息
   {
     path: '/project',
     name: 'Project',
-    redirect: '/project/list',
-    meta: { title: '项目信息' },
-    children: [
-      {
-        path: 'list',
-        name: 'ProjectList',
-        component: () => import('@/views/project/ProjectList.vue'),
-        meta: { title: '项目列表' }
-      },
-      {
-        path: ':id',
-        name: 'ProjectDetail',
-        component: () => import('@/views/project/ProjectDetail.vue'),
-        meta: { title: '项目详情' }
-      }
-    ]
+    component: () => import('@/views/project/ProjectView.vue'),
+    meta: { title: '项目信息' }
   },
   // 2. 商务管理
   {
     path: '/commerce',
     name: 'Commerce',
-    redirect: '/commerce/contracts',
-    meta: { title: '商务管理' },
-    children: [
-      {
-        path: 'contracts',
-        name: 'ContractList',
-        component: () => import('@/views/commerce/ContractList.vue'),
-        meta: { title: '合同列表' }
-      },
-      {
-        path: 'contract/edit/:id?',
-        name: 'ContractEditor',
-        component: () => import('@/views/commerce/ContractEditor.vue'),
-        meta: { title: '合同编辑' }
-      },
-      {
-        path: 'billings',
-        name: 'BillingList',
-        component: () => import('@/views/commerce/BillingList.vue'),
-        meta: { title: '收费记账' }
-      }
-    ]
+    component: () => import('@/views/commerce/CommerceView.vue'),
+    meta: { title: '商务管理' }
+  },
+  // 合同编辑器（独立页面）
+  {
+    path: '/commerce/contract/:id',
+    name: 'ContractEditor',
+    component: () => import('@/views/commerce/ContractEditor.vue'),
+    meta: { title: '合同编辑' }
   },
   // 3. 环境解析（占位）
   {
@@ -70,8 +48,8 @@ const routes: RouteRecordRaw[] = [
   },
   // 5. 平面构成（占位）
   {
-    path: '/plane',
-    name: 'Plane',
+    path: '/plan',
+    name: 'Plan',
     component: () => import('@/views/placeholder/Placeholder.vue'),
     meta: { title: '平面构成', moduleName: '平面构成' }
   },
@@ -81,6 +59,13 @@ const routes: RouteRecordRaw[] = [
     name: 'Space',
     component: () => import('@/views/placeholder/Placeholder.vue'),
     meta: { title: '空间构成', moduleName: '空间构成' }
+  },
+  // 7. 设置
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { title: '设置' }
   }
 ]
 

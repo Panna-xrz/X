@@ -197,7 +197,7 @@ async function submit() {
     } else {
       const created: Contract = await createContract(payload)
       message.success('创建成功')
-      router.replace(`/commerce/contract/edit/${created.id}`)
+      router.replace(`/commerce/contract/${created.id}`)
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')
