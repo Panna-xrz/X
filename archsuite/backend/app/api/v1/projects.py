@@ -33,7 +33,7 @@ router = APIRouter(prefix="/projects", tags=["项目信息"])
 async def list_projects(
     db: DbSession,
     page: int = Query(1, ge=1, description="页码，从1开始"),
-    page_size: int = Query(20, ge=1, le=100, alias="pageSize", description="每页条数"),
+    page_size: int = Query(50, ge=1, le=500, alias="pageSize", description="每页条数"),
 ) -> PageResult[ProjectOut]:
     """分页查询项目列表（输出 list/total/page/pageSize）。"""
     return await project_service.list_(db, page=page, page_size=page_size)

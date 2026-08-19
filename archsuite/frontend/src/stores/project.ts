@@ -80,17 +80,27 @@ export const useProjectStore = defineStore('project', () => {
   // 删除当前项目
   async function removeCurrentProject() {
     if (!currentId.value) return
-    await deleteProject(currentId.value)
-    projects.value = projects.value.filter(p => p.id !== currentId.value)
-    // 选中下一个或清空
-    const next = projects.value[0]
-    await selectProject(next ? next.id : null)
+    await removeProject(currentId.value)
   }
 
-  // 刷新当前项目详情
+  // 删除指定项目
+  async function removeProject(id: number) {
+    await deleteProject(id)
+    projects.value = projects.value.filter(p => p.id !== id)
+    // 若删除的是当前项目，选中下一个或清空
+    if (currentId.value === id) {
+      const next = projects.value[0]
+      await selectProject(next ? next.id : null)
+    }
+  }
+
+  // 刷新当前项目详情（同时同步项目列表中对应条目的名称/编号）
   async function refreshCurrent() {
     if (!currentId.value) return
-    currentProject.value = await getProject(currentId.value)
+    const detail = await getProject(currentId.value)
+    currentProject.value = detail
+    const idx = projects.value.findIndex(p => p.id === currentId.value)
+    if (idx !== -1) projects.value[idx] = detail
   }
 
   return {
@@ -104,6 +114,7 @@ export const useProjectStore = defineStore('project', () => {
     selectProject,
     addProject,
     removeCurrentProject,
+    removeProject,
     refreshCurrent,
   }
 })

@@ -9,6 +9,10 @@ export interface ThemeState {
   fontSize: number
   borderRadius: number
   isDark: boolean
+  // 界面紧凑度（间距倍数，0.8 ~ 1.2）
+  compactness: number
+  // 内容区最大宽度：'full' | '1280' | '1440' | '1600'
+  contentMaxWidth: string
 }
 
 // 根据主题状态生成 Naive UI 全局主题覆盖

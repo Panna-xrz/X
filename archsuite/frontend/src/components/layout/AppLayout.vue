@@ -48,8 +48,6 @@ function handleSelectProject(id: number) {
 async function handleCreateProject(payload: {
   name: string
   code: string
-  client?: string
-  location?: string
   type?: string
 }) {
   try {
@@ -60,10 +58,10 @@ async function handleCreateProject(payload: {
   }
 }
 
-// 删除当前项目
-async function handleDeleteProject() {
+// 删除指定项目
+async function handleDeleteProject(id: number) {
   try {
-    await projectStore.removeCurrentProject()
+    await projectStore.removeProject(id)
     message.success('项目删除成功')
   } catch (e) {
     message.error(e instanceof Error ? e.message : '删除项目失败')

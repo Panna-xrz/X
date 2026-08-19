@@ -23,7 +23,7 @@ async def list_contacts(
         None, alias="contactType", description="联系单类型：client委方 / team小组"
     ),
     page: int = Query(1, ge=1, description="页码，从1开始"),
-    page_size: int = Query(20, ge=1, le=100, alias="pageSize", description="每页条数"),
+    page_size: int = Query(50, ge=1, le=500, alias="pageSize", description="每页条数"),
 ) -> PageResult[ContactPersonOut]:
     """分页查询联系人，可按 contactType 过滤。"""
     return await contact_service.list_(

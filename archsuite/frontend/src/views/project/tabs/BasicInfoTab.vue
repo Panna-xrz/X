@@ -14,12 +14,14 @@ import {
   useMessage
 } from 'naive-ui'
 import { getProject, updateProject } from '@/api/project'
+import { useProjectStore } from '@/stores/project'
 import type { Project } from '@/types'
 
 // 基本信息 Tab：项目主体字段编辑
 const props = defineProps<{ projectId: number }>()
 
 const message = useMessage()
+const projectStore = useProjectStore()
 const loading = ref(false)
 const saving = ref(false)
 
@@ -118,6 +120,8 @@ async function save() {
       endDate: formModel.endDate,
       description: formModel.description || null
     })
+    // 同步刷新项目列表/当前项目，使侧栏切换器显示最新名称
+    await projectStore.refreshCurrent()
     message.success('保存成功')
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')

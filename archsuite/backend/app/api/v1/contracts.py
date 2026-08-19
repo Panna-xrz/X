@@ -22,7 +22,7 @@ async def list_contracts(
     db: DbSession,
     project_id: int | None = Query(None, alias="projectId", description="按项目过滤"),
     page: int = Query(1, ge=1, description="页码，从1开始"),
-    page_size: int = Query(20, ge=1, le=100, alias="pageSize", description="每页条数"),
+    page_size: int = Query(50, ge=1, le=500, alias="pageSize", description="每页条数"),
 ) -> PageResult[ContractOut]:
     """分页查询合同列表，可按 projectId 过滤。"""
     return await contract_service.list_(
