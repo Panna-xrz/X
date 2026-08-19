@@ -17,7 +17,7 @@ import {
 import { useProjectStore } from '@/stores/project'
 import { getContracts } from '@/api/contract'
 import ProjectIcon from '@/components/icons/ProjectIcon.vue'
-import type { Contract } from '@/types'
+import type { Contract, Project } from '@/types'
 
 // 项目切换器：点击图标打开居中弹窗，管理历史项目 / 新建 / 删除
 const props = defineProps<{
@@ -138,6 +138,37 @@ function submitCreate() {
     submitting.value = false
   }
 }
+
+// ---------- 分页 snap 翻页（每页 4 个 = 两排两列） ----------
+const PAGE_SIZE = 4
+// 单页高度（2 行卡片 + 1 行间距），与下方 .project-page height 保持一致
+const PAGE_HEIGHT = 292
+
+const projectPages = computed<Project[][]>(() => {
+  const all = projectStore.projects
+  const pages: Project[][] = []
+  for (let i = 0; i < all.length; i += PAGE_SIZE) {
+    pages.push(all.slice(i, i + PAGE_SIZE))
+  }
+  return pages
+})
+
+const pagesRef = ref<HTMLDivElement | null>(null)
+const isScrolling = ref(false)
+
+// 滚轮翻页：一次滚动一整页，避免卡片卡在一半
+function onWheel(e: WheelEvent) {
+  e.preventDefault()
+  if (isScrolling.value) return
+  const container = pagesRef.value
+  if (!container) return
+  const dir = e.deltaY > 0 ? 1 : -1
+  isScrolling.value = true
+  container.scrollBy({ top: dir * PAGE_HEIGHT, behavior: 'smooth' })
+  window.setTimeout(() => {
+    isScrolling.value = false
+  }, 450)
+}
 </script>
 
 <template>
@@ -170,55 +201,68 @@ function submitCreate() {
           <NButton quaternary size="small" @click="showManager = false">×</NButton>
         </div>
 
-        <!-- 项目网格 -->
+        <!-- 项目网格：固定两排两列，snap 翻页，隐藏滚动条 -->
         <NSpin :show="projectStore.loading">
-          <div v-if="projectStore.projects.length" class="project-grid">
+          <div
+            v-if="projectStore.projects.length"
+            ref="pagesRef"
+            class="project-pages"
+            @wheel.prevent="onWheel"
+          >
             <div
-              v-for="p in projectStore.projects"
-              :key="p.id"
-              class="project-card"
-              :class="{ active: p.id === props.currentProjectId }"
-              @click="handleSelect(p.id)"
+              v-for="(page, pageIdx) in projectPages"
+              :key="pageIdx"
+              class="project-page"
             >
-              <!-- 顶部进度标签 -->
-              <div class="card-top">
-                <NTag
-                  :type="getProgressLabel(p.id).color"
-                  size="tiny"
-                  round
-                  :bordered="false"
+              <div class="project-grid">
+                <div
+                  v-for="p in page"
+                  :key="p.id"
+                  class="project-card"
+                  :class="{ active: p.id === props.currentProjectId }"
+                  @click="handleSelect(p.id)"
                 >
-                  {{ getProgressLabel(p.id).text }}
-                </NTag>
-                <NPopconfirm
-                  placement="bottom-end"
-                  @positive-click="handleDelete(p.id)"
-                >
-                  <template #trigger>
-                    <button class="card-delete" @click.stop>×</button>
-                  </template>
-                  确认删除项目「{{ p.name }}」？<br />该操作不可恢复，且会级联删除项目下所有数据。
-                </NPopconfirm>
-              </div>
+                  <!-- 顶部进度标签 -->
+                  <div class="card-top">
+                    <NTag
+                      :type="getProgressLabel(p.id).color"
+                      size="tiny"
+                      round
+                      :bordered="false"
+                    >
+                      {{ getProgressLabel(p.id).text }}
+                    </NTag>
+                    <NPopconfirm
+                      placement="bottom-end"
+                      @positive-click="handleDelete(p.id)"
+                    >
+                      <template #trigger>
+                        <button class="card-delete" @click.stop>×</button>
+                      </template>
+                      确认删除项目「{{ p.name }}」？<br />该操作不可恢复，且会级联删除项目下所有数据。
+                    </NPopconfirm>
+                  </div>
 
-              <!-- 项目主体 -->
-              <div class="card-body">
-                <div class="card-name">{{ p.name }}</div>
-                <div class="card-code">{{ p.code }}</div>
-              </div>
+                  <!-- 项目主体 -->
+                  <div class="card-body">
+                    <div class="card-name">{{ p.name }}</div>
+                    <div class="card-code">{{ p.code }}</div>
+                  </div>
 
-              <!-- 底部信息 -->
-              <div class="card-foot">
-                <span class="foot-type">{{ p.type || '未分类' }}</span>
-                <NTag
-                  v-if="p.id === props.currentProjectId"
-                  type="primary"
-                  size="tiny"
-                  round
-                  :bordered="false"
-                >
-                  当前
-                </NTag>
+                  <!-- 底部信息 -->
+                  <div class="card-foot">
+                    <span class="foot-type">{{ p.type || '未分类' }}</span>
+                    <NTag
+                      v-if="p.id === props.currentProjectId"
+                      type="primary"
+                      size="tiny"
+                      round
+                      :bordered="false"
+                    >
+                      当前
+                    </NTag>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -367,35 +411,59 @@ function submitCreate() {
   }
 }
 
+// 项目分页滚动容器：固定高度（两排两列），snap 翻页，隐藏滚动条
+.project-pages {
+  height: 332px; // 2 行卡片(140×2) + 1 间距(12) + 上下内边距(20×2)
+  padding: 20px 24px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  // 用 page 层背景作为卡片舞台，衬托白卡片（无分割线，靠层次区分）
+  background: var(--app-bg-page);
+  // 隐藏滚动条
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.project-page {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 292px; // 2 行卡片 + 1 间距，与 PAGE_HEIGHT 常量一致
+}
+
 // 项目网格
 .project-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  padding: 20px 24px;
-  max-height: 440px;
-  overflow-y: auto;
+  height: 100%;
 }
 
 .project-card {
   display: flex;
   flex-direction: column;
+  height: 140px;
   padding: 14px 16px;
-  border-radius: var(--app-radius, 8px);
-  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius);
+  // 无边框，靠卡片白底浮于 page 浅灰舞台区分层次
+  border: none;
   background: var(--app-card-bg);
+  box-shadow: var(--app-shadow-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   gap: 10px;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--app-primary) 40%, transparent);
-    box-shadow: var(--app-shadow-sm);
+    transform: translateY(-1px);
+    box-shadow: var(--app-shadow-md);
   }
 
   &.active {
-    border-color: var(--app-primary);
-    background: color-mix(in srgb, var(--app-primary) 6%, transparent);
+    background: color-mix(in srgb, var(--app-primary) 8%, var(--app-card-bg));
+    box-shadow: 0 0 0 1.5px var(--app-primary), var(--app-shadow-sm);
   }
 
   .card-top {

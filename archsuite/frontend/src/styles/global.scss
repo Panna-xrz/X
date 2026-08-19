@@ -43,16 +43,31 @@ textarea {
 /* ---------- :root CSS 变量（默认亮色，运行时由主题覆盖补充） ---------- */
 :root {
   --app-primary: #3457d5;
-  --app-bg: #f5f6f8;
+  /* 4 层背景 */
+  --app-bg: #f4f5f7;
+  --app-bg-page: #f4f5f7;
   --app-card-bg: #ffffff;
+  --app-panel-bg: #fafbfc;
+  --app-inset-bg: #eef0f3;
+  /* 文本 */
   --app-text-1: #3b3f45;
   --app-text-2: #6a6f76;
-  --app-divider: #ecedf1;
-  --app-radius: 8px;
+  --app-text-3: #9aa0a8;
+  /* 分割线：透明（用层次差异分层） */
+  --app-divider: transparent;
+  /* 圆角 */
+  --app-radius: 12px;
+  /* 字体 */
   --app-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* 4 种字号 */
   --app-font-size: 14px;
+  --app-font-size-xs: 12px;
+  --app-font-size-sm: 13px;
+  --app-font-size-lg: 16px;
+  /* 阴影 */
   --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --app-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --app-shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.10);
 }
 
 /* ---------- html / body ---------- */
@@ -61,7 +76,7 @@ body {
   font-family: var(--app-font-family);
   font-size: var(--app-font-size);
   color: var(--app-text-1);
-  background-color: var(--app-bg);
+  background-color: var(--app-bg-page);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

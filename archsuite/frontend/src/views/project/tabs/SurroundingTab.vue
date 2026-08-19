@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch, onMounted } from 'vue'
+import { reactive, ref, watch, onMounted, computed } from 'vue'
 import {
   NCard,
   NForm,
@@ -9,13 +9,15 @@ import {
   NButton,
   NSpace,
   NSpin,
+  NTag,
   useMessage
 } from 'naive-ui'
 import { getProjectSurrounding, upsertProjectSurrounding, getProject } from '@/api/project'
 import AMapPicker from '@/components/AMapPicker.vue'
+import { lngLatToGauss3, gauss3ToLngLat, parseRedLineText } from '@/utils/coord'
 import type { ProjectSurrounding } from '@/types'
 
-// 场地周边 Tab：高德地图选点 + 周边信息
+// 场地周边 Tab：高德地图选点 + CGCS2000 坐标 + 用地红线放线 + 周边信息
 const props = defineProps<{ projectId: number }>()
 
 const message = useMessage()
@@ -33,6 +35,58 @@ const formModel = reactive<ProjectSurrounding>({
   transitInfo: '',
   remarks: ''
 })
+
+// CGCS2000 单点 XY（与经纬度联动，自动计算）
+const xyInfo = computed(() => {
+  if (formModel.longitude == null || formModel.latitude == null) return null
+  try {
+    return lngLatToGauss3(formModel.longitude, formModel.latitude)
+  } catch {
+    return null
+  }
+})
+
+// 用地红线放线：CGCS2000 XY 点 -> 经纬度点 -> 传给地图绘制
+const redlineInput = ref('')
+const redlinePoints = ref<Array<{ lng: number; lat: number }>>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+
+function triggerFile() {
+  fileInput.value?.click()
+}
+
+function onFile(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    redlineInput.value = String(reader.result || '')
+    applyRedline()
+  }
+  reader.onerror = () => message.error('文件读取失败')
+  reader.readAsText(file)
+  target.value = ''
+}
+
+function applyRedline() {
+  const res = parseRedLineText(redlineInput.value)
+  if (!res.ok) {
+    message.warning(res.message)
+    return
+  }
+  const pts = res.points.map((p) => {
+    const ll = gauss3ToLngLat(p.x, p.y, res.zone)
+    return { lng: ll.lng, lat: ll.lat }
+  })
+  redlinePoints.value = pts
+  message.success(`已放线 ${pts.length} 个红线点（${res.zone ?? '?'}带）`)
+}
+
+function clearRedline() {
+  redlinePoints.value = []
+  redlineInput.value = ''
+}
 
 async function load() {
   if (!props.projectId) return
@@ -110,19 +164,20 @@ onMounted(() => load())
           :model-value="formModel.longitude"
           :lat-model="formModel.latitude"
           :height="360"
+          :redline="redlinePoints"
           @update:model-value="updateLng"
           @update:lat-model="updateLat"
         />
       </div>
 
       <div class="section">
-        <div class="section-title">经纬度</div>
-        <NSpace :size="12">
+        <div class="section-title">经纬度与 CGCS2000 坐标</div>
+        <NSpace :size="12" align="center" wrap>
           <NInputNumber
             :value="formModel.longitude"
             :precision="6"
             :step="0.000001"
-            style="width: 200px"
+            style="width: 180px"
             placeholder="经度"
             @update:value="(v: number | null) => (formModel.longitude = v)"
           />
@@ -130,11 +185,45 @@ onMounted(() => load())
             :value="formModel.latitude"
             :precision="6"
             :step="0.000001"
-            style="width: 200px"
+            style="width: 180px"
             placeholder="纬度"
             @update:value="(v: number | null) => (formModel.latitude = v)"
           />
+          <NTag v-if="xyInfo" size="small" round :bordered="false" type="info">
+            CGCS2000 {{ xyInfo.zone }}带
+          </NTag>
         </NSpace>
+        <div v-if="xyInfo" class="xy-row">
+          <span class="xy-item"><span class="xy-k">X(北)</span><span class="xy-v">{{ xyInfo.X.toFixed(3) }}</span></span>
+          <span class="xy-item"><span class="xy-k">Y(东)</span><span class="xy-v">{{ xyInfo.Y.toFixed(3) }}</span></span>
+          <span class="xy-hint">中央子午线 {{ xyInfo.L0 }}°（自动按 3 度带选择）</span>
+        </div>
+      </div>
+
+      <!-- 用地红线放线 -->
+      <div class="section">
+        <div class="section-title">用地红线放线（CGCS2000 3 度带）</div>
+        <div class="redline-toolbar">
+          <NButton size="small" @click="triggerFile">上传表格</NButton>
+          <input
+            ref="fileInput"
+            type="file"
+            accept=".csv,.txt,.tsv"
+            style="display: none"
+            @change="onFile"
+          />
+          <NButton size="small" type="primary" @click="applyRedline">放线</NButton>
+          <NButton size="small" quaternary @click="clearRedline">清除</NButton>
+          <NTag v-if="redlinePoints.length" size="small" round :bordered="false" type="success">
+            已加载 {{ redlinePoints.length }} 点
+          </NTag>
+        </div>
+        <NInput
+          v-model:value="redlineInput"
+          type="textarea"
+          :rows="5"
+          placeholder="粘贴或输入红线坐标，每行一个点：序号,X(北),Y(东)&#10;示例：&#10;1,4420000.123,39450000.456&#10;2,4420100.000,39450100.000&#10;支持 CSV / TSV / 空格分隔；Y 含带号将自动识别，否则需自行确保带号一致"
+        />
       </div>
 
       <NForm label-placement="left" label-width="120">
@@ -177,6 +266,49 @@ onMounted(() => load())
   font-size: 0.93em;
   font-weight: 600;
   color: var(--app-text-1);
+  margin-bottom: 8px;
+}
+
+.xy-row {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  background: var(--app-inset-bg);
+  border-radius: calc(var(--app-radius) - 2px);
+
+  .xy-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .xy-k {
+    font-size: 0.86em;
+    color: var(--app-text-3);
+    font-weight: 500;
+  }
+
+  .xy-v {
+    font-size: 0.93em;
+    color: var(--app-text-1);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .xy-hint {
+    font-size: 0.79em;
+    color: var(--app-text-3);
+    margin-left: auto;
+  }
+}
+
+.redline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
 }
 </style>

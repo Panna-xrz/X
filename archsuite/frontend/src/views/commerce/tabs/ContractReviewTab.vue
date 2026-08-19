@@ -217,7 +217,7 @@ onMounted(() => loadContracts())
   color: var(--app-text-2);
   padding: 8px 12px;
   background: var(--app-bg, #f7f8fa);
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   margin-bottom: 12px;
 }
 

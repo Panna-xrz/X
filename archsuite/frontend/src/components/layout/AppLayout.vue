@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import IconBar, { type ModuleKey } from './IconBar.vue'
+import PannaAssistant from './PannaAssistant.vue'
 import { useProjectStore } from '@/stores/project'
 import { useThemeStore } from '@/stores/theme'
 import { useMessage } from 'naive-ui'
@@ -104,6 +105,7 @@ watch(
         <component :is="Component" />
       </RouterView>
     </main>
+    <PannaAssistant />
   </div>
 </template>
 

@@ -152,7 +152,7 @@ function onSelect(key: ModuleKey) {
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--app-radius);
   color: var(--app-rail-text);
   cursor: pointer;
   transition: background 0.18s, color 0.18s;
