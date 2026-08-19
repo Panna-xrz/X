@@ -126,7 +126,7 @@ const darkLabel = computed(() => (themeStore.isDark ? '暗色' : '亮色'))
   }
 
   .label {
-    font-size: 13px;
+    font-size: 0.93em;
     color: var(--app-text-2);
     white-space: nowrap;
   }
@@ -137,7 +137,7 @@ const darkLabel = computed(() => (themeStore.isDark ? '暗色' : '亮色'))
     align-items: center;
 
     .value {
-      font-size: 12px;
+      font-size: 0.86em;
       color: var(--app-text-3);
     }
   }

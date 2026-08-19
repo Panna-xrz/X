@@ -243,7 +243,7 @@ onBeforeUnmount(() => {
 
 .info-bar {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 0.93em;
   color: var(--app-text-2);
 
   .coord b {
@@ -254,7 +254,7 @@ onBeforeUnmount(() => {
   .address {
     margin-top: 4px;
     color: var(--app-text-2);
-  font-size: 12px;
+  font-size: 0.86em;
   }
 }
 </style>

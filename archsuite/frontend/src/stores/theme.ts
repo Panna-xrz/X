@@ -8,7 +8,7 @@ const STORAGE_KEY = 'archsuite_theme'
 // 主题状态默认值
 const defaultState: ThemeState = {
   themeName: 'light',
-  primaryColor: '#2080f0',
+  primaryColor: '#3457d5',
   fontFamily: fontFamilyCandidates[0].value,
   fontSize: 14,
   borderRadius: 8,

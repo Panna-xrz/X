@@ -213,7 +213,7 @@ onMounted(() => loadContracts())
 .meta-bar {
   display: flex;
   gap: 24px;
-  font-size: 13px;
+  font-size: 0.93em;
   color: var(--app-text-2);
   padding: 8px 12px;
   background: var(--app-bg, #f7f8fa);
@@ -225,7 +225,7 @@ onMounted(() => loadContracts())
   margin-top: 16px;
 
   .section-title {
-    font-size: 14px;
+    font-size: 1em;
     font-weight: 600;
     margin: 0 0 8px 0;
     color: var(--app-text-1);

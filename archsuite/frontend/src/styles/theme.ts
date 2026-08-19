@@ -76,7 +76,7 @@ export function generateThemeOverrides(state: ThemeState): GlobalThemeOverrides 
     },
     Input: {
       // 输入框边框弱化处理
-      border: `1px solid ${state.isDark ? '#2c2c30' : '#efeff5'}`,
+      border: `1px solid ${state.isDark ? '#26272d' : '#ecedf1'}`,
       borderHover: state.primaryColor,
       borderFocus: state.primaryColor,
       borderRadius: `${state.borderRadius}px`,
@@ -88,14 +88,14 @@ export function generateThemeOverrides(state: ThemeState): GlobalThemeOverrides 
       thColor: palette.tableHeaderBackground,
       thColorHover: palette.tableHeaderBackground,
       tdColor: palette.cardBackground,
-      tdColorHover: state.isDark ? '#202024' : '#fafafa',
+      tdColorHover: state.isDark ? '#1e1f24' : '#f7f8fa',
       borderRadius: `${state.borderRadius}px`
     },
     Menu: {
       // 菜单无边框
-      itemColorActive: state.isDark ? '#202024' : '#eaf2ff',
-      itemColorActiveHover: state.isDark ? '#202024' : '#eaf2ff',
-      itemColorActiveCollapsed: state.isDark ? '#202024' : '#eaf2ff',
+      itemColorActive: state.isDark ? '#1e1f24' : '#eaeefb',
+      itemColorActiveHover: state.isDark ? '#1e1f24' : '#eaeefb',
+      itemColorActiveCollapsed: state.isDark ? '#1e1f24' : '#eaeefb',
       borderRadius: `${state.borderRadius}px`
     },
     Layout: {
