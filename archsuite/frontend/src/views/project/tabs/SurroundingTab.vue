@@ -174,7 +174,7 @@ onMounted(() => load())
 }
 
 .section-title {
-  font-size: 13px;
+  font-size: 0.93em;
   font-weight: 600;
   color: var(--app-text-1);
   margin-bottom: 8px;

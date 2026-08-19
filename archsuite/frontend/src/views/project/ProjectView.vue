@@ -74,14 +74,14 @@ watch(currentProjectId, () => {
   margin-bottom: 12px;
 
   .title {
-    font-size: 18px;
+    font-size: 1.29em;
     font-weight: 600;
     color: var(--app-text-1);
     margin: 0;
   }
 
   .subtitle {
-    font-size: 13px;
+    font-size: 0.93em;
     color: var(--app-text-3);
   }
 }

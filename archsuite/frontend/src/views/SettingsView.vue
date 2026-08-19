@@ -95,7 +95,7 @@ const isDark = computed<boolean>({
   set: (val: boolean) => themeStore.setTheme(val ? 'dark' : 'light')
 })
 
-const presetSwatches = ['#2080f0', '#18a058', '#7b61d6', '#f0a020', '#d03050']
+const presetSwatches = ['#3457d5', '#1f9d6b', '#7b61d6', '#d68a1f', '#c8344e']
 
 const fontOptions = fontFamilyCandidates.map((f) => ({ label: f.label, value: f.value }))
 
@@ -463,7 +463,7 @@ function clearProjectData() {
   margin-bottom: 12px;
 
   .title {
-    font-size: 18px;
+    font-size: 1.29em;
     font-weight: 600;
     color: var(--app-text-1);
     margin: 0;
@@ -471,7 +471,7 @@ function clearProjectData() {
 }
 
 .sub-title {
-  font-size: 13px;
+  font-size: 0.93em;
   font-weight: 600;
   color: var(--app-text-2);
   margin-bottom: 8px;
@@ -484,7 +484,7 @@ function clearProjectData() {
   width: 100%;
 
   .slider-value {
-    font-size: 12px;
+    font-size: 0.86em;
     color: var(--app-text-3);
     min-width: 48px;
     text-align: right;
@@ -506,7 +506,7 @@ function clearProjectData() {
 }
 
 .about-text {
-  font-size: 13px;
+  font-size: 0.93em;
   color: var(--app-text-2);
 }
 
@@ -528,17 +528,17 @@ function clearProjectData() {
   }
 
   .cleanup-title {
-    font-size: 14px;
+    font-size: 1em;
     font-weight: 500;
     color: var(--app-text-1);
 
     &.danger {
-      color: var(--app-error, #d03050);
+      color: var(--app-error, #c8344e);
     }
   }
 
   .cleanup-desc {
-    font-size: 12px;
+    font-size: 0.86em;
     color: var(--app-text-3);
     margin-top: 2px;
   }

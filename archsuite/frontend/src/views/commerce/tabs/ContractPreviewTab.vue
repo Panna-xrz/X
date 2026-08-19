@@ -139,7 +139,7 @@ onMounted(() => loadContracts())
 .meta-bar {
   display: flex;
   gap: 24px;
-  font-size: 13px;
+  font-size: 0.93em;
   color: var(--app-text-2);
   padding: 8px 12px;
   background: var(--app-bg, #f7f8fa);
@@ -149,7 +149,7 @@ onMounted(() => loadContracts())
 
 .content-text {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 0.93em;
   line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-word;

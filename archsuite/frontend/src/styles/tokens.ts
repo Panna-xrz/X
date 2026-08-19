@@ -3,54 +3,54 @@
 // 无边框常量：用于覆盖组件边框为透明，体现现代扁平风格
 export const BORDER_NONE = '1px solid transparent'
 
-// 亮色色板
+// 亮色色板（精炼靛蓝主色 + 中性灰，规避廉价默认蓝）
 export const lightPalette = {
-  primary: '#2080f0',
-  primaryHover: '#4098fc',
-  primaryPressed: '#0c7df0',
-  primarySuppl: '#2080f0',
-  info: '#2080f0',
-  success: '#18a058',
-  warning: '#f0a020',
-  error: '#d03050',
-  textBase: '#333639',
-  text1: '#5a5a5a',
-  text2: '#7d7d7d',
-  text3: '#a0a0a0',
+  primary: '#3457d5',
+  primaryHover: '#4566e0',
+  primaryPressed: '#2a49c0',
+  primarySuppl: '#3457d5',
+  info: '#3457d5',
+  success: '#1f9d6b',
+  warning: '#d68a1f',
+  error: '#c8344e',
+  textBase: '#1f2329',
+  text1: '#3b3f45',
+  text2: '#6a6f76',
+  text3: '#9aa0a8',
   background: '#ffffff',
-  bodyBackground: '#f7f8fa',
+  bodyBackground: '#f5f6f8',
   cardBackground: '#ffffff',
   modalBackground: '#ffffff',
   popoverBackground: '#ffffff',
-  tableHeaderBackground: '#fafafa',
+  tableHeaderBackground: '#f7f8fa',
   inputBackground: '#ffffff',
   borderColor: 'transparent',
-  dividerColor: '#efeff5'
+  dividerColor: '#ecedf1'
 }
 
-// 暗色色板
+// 暗色色板（同源靛蓝，暗背适配）
 export const darkPalette = {
-  primary: '#2080f0',
-  primaryHover: '#4098fc',
-  primaryPressed: '#0c7df0',
-  primarySuppl: '#2080f0',
-  info: '#2080f0',
-  success: '#18a058',
-  warning: '#f0a020',
-  error: '#e88080',
+  primary: '#5b78ec',
+  primaryHover: '#6f8af0',
+  primaryPressed: '#4a66d4',
+  primarySuppl: '#5b78ec',
+  info: '#5b78ec',
+  success: '#3ec98a',
+  warning: '#e6a23c',
+  error: '#e88a9a',
   textBase: '#ffffffd9',
-  text1: '#ffffffa6',
-  text2: '#ffffff7f',
+  text1: '#ffffffc0',
+  text2: '#ffffff80',
   text3: '#ffffff52',
   background: '#101014',
-  bodyBackground: '#0d0d10',
-  cardBackground: '#18181c',
-  modalBackground: '#18181c',
-  popoverBackground: '#18181c',
-  tableHeaderBackground: '#202024',
-  inputBackground: '#18181c',
+  bodyBackground: '#0b0c0f',
+  cardBackground: '#16171b',
+  modalBackground: '#181a1f',
+  popoverBackground: '#1c1d22',
+  tableHeaderBackground: '#1e1f24',
+  inputBackground: '#1a1b1f',
   borderColor: 'transparent',
-  dividerColor: '#2c2c30'
+  dividerColor: '#26272d'
 }
 
 // 字体族候选列表

@@ -48,7 +48,7 @@ const name = props.moduleName || (route.meta.moduleName as string) || '未知模
 }
 
 .module-emoji {
-  font-size: 48px;
+  font-size: 3.43em;
 }
 
 .content {
@@ -56,20 +56,20 @@ const name = props.moduleName || (route.meta.moduleName as string) || '未知模
   margin-top: 8px;
 
   .title {
-    font-size: 20px;
+    font-size: 1.43em;
     font-weight: 600;
     color: var(--app-text-1);
   }
 
   .desc {
     margin-top: 8px;
-    font-size: 14px;
+    font-size: 1em;
     color: var(--app-text-2);
   }
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 0.86em;
   color: var(--app-text-3);
 }
 </style>

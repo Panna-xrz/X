@@ -15,7 +15,9 @@ import {
   useMessage
 } from 'naive-ui'
 import { useProjectStore } from '@/stores/project'
+import { getContracts } from '@/api/contract'
 import ProjectIcon from '@/components/icons/ProjectIcon.vue'
+import type { Contract } from '@/types'
 
 // 项目切换器：点击图标打开居中弹窗，管理历史项目 / 新建 / 删除
 const props = defineProps<{
@@ -42,15 +44,57 @@ const formModel = reactive<{ name: string; code: string; type: string }>({
   type: ''
 })
 
+// 项目类型（按《建筑工程设计资质分类》及《民用建筑设计通则》整理）
 const typeOptions = [
-  { label: '公共建筑', value: '公共建筑' },
-  { label: '住宅', value: '住宅' },
-  { label: '商业综合体', value: '商业综合体' },
-  { label: '工业建筑', value: '工业建筑' }
+  { label: '居住建筑', value: '居住建筑' },
+  { label: '一般公共建筑', value: '一般公共建筑' },
+  { label: '大型公共建筑', value: '大型公共建筑' },
+  { label: '工业建筑', value: '工业建筑' },
+  { label: '农业建筑', value: '农业建筑' },
+  { label: '构筑物', value: '构筑物' }
 ]
+
+// 合同进度数据（每个项目的合同状态聚合）
+const projectContracts = ref<Record<number, Contract[]>>({})
 
 // 当前项目名称（截断显示）
 const currentName = computed(() => projectStore.currentProject?.name || '选择项目')
+
+// 获取某个项目的节点进度标签
+function getProgressLabel(projectId: number): { text: string; color: 'default' | 'info' | 'success' | 'warning' | 'error' } {
+  const contracts = projectContracts.value[projectId]
+  if (!contracts || contracts.length === 0) {
+    return { text: '未立项', color: 'default' }
+  }
+  const hasSigned = contracts.some(c => c.status === 'signed')
+  const hasDraft = contracts.some(c => c.status === 'draft')
+  const hasReviewing = contracts.some(c => c.status === 'reviewing')
+  const allTerminated = contracts.every(c => c.status === 'terminated')
+
+  if (allTerminated) return { text: '已终止', color: 'error' }
+  if (hasSigned) return { text: '执行中', color: 'success' }
+  if (hasReviewing) return { text: '审核中', color: 'info' }
+  if (hasDraft) return { text: '草拟中', color: 'warning' }
+  return { text: '已立项', color: 'default' }
+}
+
+// 加载所有项目的合同数据（弹窗打开时）
+async function loadContracts() {
+  for (const p of projectStore.projects) {
+    try {
+      const res = await getContracts({ projectId: p.id, page: 1, pageSize: 50 })
+      projectContracts.value[p.id] = res.list || []
+    } catch {
+      projectContracts.value[p.id] = []
+    }
+  }
+}
+
+// 打开弹窗
+async function openManager() {
+  showManager.value = true
+  await loadContracts()
+}
 
 // 选择项目
 function handleSelect(id: number) {
@@ -61,6 +105,7 @@ function handleSelect(id: number) {
 // 删除项目
 function handleDelete(id: number) {
   emit('deleteProject', id)
+  delete projectContracts.value[id]
 }
 
 // 打开新建弹窗
@@ -97,72 +142,103 @@ function submitCreate() {
 
 <template>
   <div class="project-switcher">
-    <button class="switcher-trigger" :title="currentName" @click="showManager = true">
+    <button class="switcher-trigger" :title="currentName" @click="openManager">
       <ProjectIcon class="trigger-icon" />
       <span class="switcher-name">{{ currentName }}</span>
     </button>
 
-    <!-- 项目管理弹窗（居中） -->
+    <!-- 项目管理弹窗（居中，启动窗口风格） -->
     <NModal
       v-model:show="showManager"
-      preset="card"
-      title="项目管理"
-      style="width: 520px; max-width: 90vw"
       :bordered="false"
+      :mask-closable="true"
+      style="width: 640px; max-width: 90vw"
+      class="project-manager-modal"
     >
-      <NSpin :show="projectStore.loading">
-        <div v-if="projectStore.projects.length" class="project-list">
-          <div
-            v-for="p in projectStore.projects"
-            :key="p.id"
-            class="project-item"
-            :class="{ active: p.id === props.currentProjectId }"
-            @click="handleSelect(p.id)"
-          >
-            <div class="project-info">
-              <div class="project-name">
-                <span class="name-text">{{ p.name }}</span>
+      <div class="manager-container">
+        <!-- 头部 -->
+        <div class="manager-header">
+          <div class="header-left">
+            <div class="header-logo">
+              <ProjectIcon class="logo-icon" />
+            </div>
+            <div class="header-text">
+              <div class="header-title">项目管理</div>
+              <div class="header-sub">选择、新建或管理你的设计项目</div>
+            </div>
+          </div>
+          <NButton quaternary size="small" @click="showManager = false">×</NButton>
+        </div>
+
+        <!-- 项目网格 -->
+        <NSpin :show="projectStore.loading">
+          <div v-if="projectStore.projects.length" class="project-grid">
+            <div
+              v-for="p in projectStore.projects"
+              :key="p.id"
+              class="project-card"
+              :class="{ active: p.id === props.currentProjectId }"
+              @click="handleSelect(p.id)"
+            >
+              <!-- 顶部进度标签 -->
+              <div class="card-top">
+                <NTag
+                  :type="getProgressLabel(p.id).color"
+                  size="tiny"
+                  round
+                  :bordered="false"
+                >
+                  {{ getProgressLabel(p.id).text }}
+                </NTag>
+                <NPopconfirm
+                  placement="bottom-end"
+                  @positive-click="handleDelete(p.id)"
+                >
+                  <template #trigger>
+                    <button class="card-delete" @click.stop>×</button>
+                  </template>
+                  确认删除项目「{{ p.name }}」？<br />该操作不可恢复，且会级联删除项目下所有数据。
+                </NPopconfirm>
+              </div>
+
+              <!-- 项目主体 -->
+              <div class="card-body">
+                <div class="card-name">{{ p.name }}</div>
+                <div class="card-code">{{ p.code }}</div>
+              </div>
+
+              <!-- 底部信息 -->
+              <div class="card-foot">
+                <span class="foot-type">{{ p.type || '未分类' }}</span>
                 <NTag
                   v-if="p.id === props.currentProjectId"
                   type="primary"
                   size="tiny"
                   round
+                  :bordered="false"
                 >
                   当前
                 </NTag>
               </div>
-              <div class="project-code">{{ p.code }}</div>
             </div>
-            <NPopconfirm
-              placement="left"
-              @positive-click="handleDelete(p.id)"
-            >
-              <template #trigger>
-                <NButton
-                  size="tiny"
-                  type="error"
-                  ghost
-                  @click.stop
-                >
-                  删除
-                </NButton>
-              </template>
-              确认删除项目「{{ p.name }}」？该操作不可恢复，且会级联删除项目下所有数据。
-            </NPopconfirm>
           </div>
-        </div>
-        <NEmpty v-else description="暂无项目" size="small" />
-      </NSpin>
+          <NEmpty v-else description="暂无项目，请新建" style="padding: 60px 0" />
+        </NSpin>
 
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showManager = false">关闭</NButton>
-          <NButton type="primary" @click="openCreate">+ 新建项目</NButton>
-        </NSpace>
-      </template>
+        <!-- 底部操作栏 -->
+        <div class="manager-footer">
+          <span class="footer-count">共 {{ projectStore.projects.length }} 个项目</span>
+          <NSpace :size="12">
+            <NButton size="small" @click="showManager = false">关闭</NButton>
+            <NButton size="small" type="primary" @click="openCreate">
+              + 新建项目
+            </NButton>
+          </NSpace>
+        </div>
+      </div>
     </NModal>
 
-    <!-- 新建项目弹窗（居中） -->
+    <!-- 新建项目弹窗 -->
     <NModal
       v-model:show="showCreate"
       preset="card"
@@ -181,7 +257,7 @@ function submitCreate() {
           <NSelect
             v-model:value="formModel.type"
             :options="typeOptions"
-            placeholder="请选择"
+            placeholder="请选择（按国标分类）"
             clearable
           />
         </NFormItem>
@@ -203,7 +279,7 @@ function submitCreate() {
   width: 100%;
 }
 
-// 触发按钮在侧边栏内，使用 --app-rail-* 令牌
+// 触发按钮在侧边栏内
 .switcher-trigger {
   width: 100%;
   height: 56px;
@@ -230,7 +306,7 @@ function submitCreate() {
   }
 
   .switcher-name {
-    font-size: 11px;
+    font-size: 0.79em;
     line-height: 1.2;
     text-align: center;
     max-width: 52px;
@@ -240,61 +316,156 @@ function submitCreate() {
   }
 }
 
-// 弹窗内容在主内容区，使用 --app-* 令牌
-.project-list {
-  max-height: 420px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px 0;
+// 弹窗容器（启动窗口风格）
+.manager-container {
+  background: var(--app-card-bg);
+  border-radius: var(--app-radius, 8px);
+  box-shadow: var(--app-shadow-lg);
+  overflow: hidden;
 }
 
-.project-item {
+.manager-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--app-divider);
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-logo {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--app-radius, 8px);
+    background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+
+    .logo-icon {
+      width: 22px;
+      height: 22px;
+      color: var(--app-primary);
+    }
+  }
+
+  .header-title {
+    font-size: 1.14em;
+    font-weight: 600;
+    color: var(--app-text-1);
+    line-height: 1.3;
+  }
+
+  .header-sub {
+    font-size: 0.86em;
+    color: var(--app-text-3);
+    margin-top: 2px;
+  }
+}
+
+// 项目网格
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 20px 24px;
+  max-height: 440px;
+  overflow-y: auto;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  border-radius: var(--app-radius, 8px);
   border: 1px solid var(--app-divider);
   background: var(--app-card-bg);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: all 0.15s ease;
+  gap: 10px;
 
   &:hover {
-    background: var(--app-bg);
+    border-color: color-mix(in srgb, var(--app-primary) 40%, transparent);
+    box-shadow: var(--app-shadow-sm);
   }
 
   &.active {
     border-color: var(--app-primary);
-    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+    background: color-mix(in srgb, var(--app-primary) 6%, transparent);
   }
 
-  .project-info {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .project-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--app-text-1);
+  .card-top {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+  }
 
-    .name-text {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+  .card-delete {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: var(--app-text-3);
+    font-size: 1.14em;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+
+    &:hover {
+      background: color-mix(in srgb, var(--error-color, #c8344e) 12%, transparent);
+      color: #c8344e;
     }
   }
 
-  .project-code {
-    font-size: 11px;
+  .card-body {
+    flex: 1;
+  }
+
+  .card-name {
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--app-text-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-code {
+    font-size: 0.86em;
     color: var(--app-text-3);
-    margin-top: 2px;
+    margin-top: 4px;
+  }
+
+  .card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .foot-type {
+      font-size: 0.79em;
+      color: var(--app-text-3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--app-bg);
+    }
+  }
+}
+
+.manager-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--app-divider);
+
+  .footer-count {
+    font-size: 0.86em;
+    color: var(--app-text-3);
   }
 }
 </style>
