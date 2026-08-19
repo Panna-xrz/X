@@ -1,16 +1,27 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios'
 import type { ApiResponse } from '@/types'
+import { readSetting } from '@/utils/settings'
 
 // 创建 axios 实例：统一前缀 /api/v1
-// 超时设为 120s：AI 起草/审核接口耗时较长
+// 超时由设置面板 requestTimeout 控制（默认 30s；AI 接口可在调用时单独覆盖）
+function getRequestTimeout(): number {
+  const sec = Number(readSetting('requestTimeout', '30'))
+  if (!Number.isFinite(sec) || sec <= 0) return 30000
+  return sec * 1000
+}
+
 const service: AxiosInstance = axios.create({
   baseURL: '/api/v1',
-  timeout: 120000
+  timeout: getRequestTimeout()
 })
 
-// 请求拦截器：可附加 token 等
+// 请求拦截器：每次请求读取最新超时设置（允许运行时调整）
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 若调用方未显式覆盖超时，使用设置面板的值
+    if (config.timeout === undefined) {
+      config.timeout = getRequestTimeout()
+    }
     const token = localStorage.getItem('archsuite_token')
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`

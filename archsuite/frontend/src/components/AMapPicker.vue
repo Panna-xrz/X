@@ -30,12 +30,19 @@ const emit = defineEmits<{
 const message = useMessage()
 
 const STORAGE_KEY = 'archsuite_amap_key'
+const SECURITY_KEY = 'archsuite_amap_security'
 
 // 读取高德 Key
 function getAmapKey(): string {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored && stored.trim()) return stored.trim()
   return 'YOUR_AMAP_KEY'
+}
+
+// 读取高德安全密钥（2021-12-02 后申请的 Key 必须配置）
+function getAmapSecurity(): string {
+  const stored = localStorage.getItem(SECURITY_KEY)
+  return stored && stored.trim() ? stored.trim() : ''
 }
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -81,9 +88,15 @@ function loadAmapScript(): Promise<void> {
       return
     }
     const key = getAmapKey()
+    // 安全密钥：2021-12-02 后申请的 Key 必须在脚本加载前注入
+    const security = getAmapSecurity()
+    if (security) {
+      ;(window as any)._AMapSecurityConfig = { securityJsCode: security }
+    }
     const script = document.createElement('script')
     script.id = 'amap-script'
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}&plugin=AMap.Geocoder,AMap.AutoComplete,AMap.PlaceSearch`
+    // 插件包含 Polygon（红线放线需要）
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}&plugin=AMap.Geocoder,AMap.AutoComplete,AMap.PlaceSearch,AMap.Polygon`
     script.async = true
     script.onload = () => resolve()
     script.onerror = () => reject(new Error('高德地图加载失败，请检查网络或 Key 配置'))

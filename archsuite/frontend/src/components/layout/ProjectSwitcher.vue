@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import {
   NModal,
   NButton,
@@ -17,11 +17,16 @@ import {
 import { useProjectStore } from '@/stores/project'
 import { getContracts } from '@/api/contract'
 import ProjectIcon from '@/components/icons/ProjectIcon.vue'
+import { readSetting } from '@/utils/settings'
 import type { Contract, Project } from '@/types'
 
 // 项目切换器：点击图标打开居中弹窗，管理历史项目 / 新建 / 删除
+// - 可作为侧栏触发器使用（默认渲染触发按钮）
+// - 也可由外部控制（hideTrigger 隐藏按钮 + forceOpen 控制弹窗）
 const props = defineProps<{
   currentProjectId: number | null
+  hideTrigger?: boolean
+  forceOpen?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -96,6 +101,15 @@ async function openManager() {
   await loadContracts()
 }
 
+// 外部 forceOpen 控制
+watch(
+  () => props.forceOpen,
+  (v) => {
+    if (v) openManager()
+    else showManager.value = false
+  }
+)
+
 // 选择项目
 function handleSelect(id: number) {
   emit('selectProject', id)
@@ -110,6 +124,9 @@ function handleDelete(id: number) {
 
 // 打开新建弹窗
 function openCreate() {
+  // 默认项目阶段由设置面板 defaultPhase 控制
+  const phase = readSetting('defaultPhase', '概念设计')
+  void phase // 当前 formModel 无 phase 字段，预留供后续扩展
   Object.assign(formModel, { name: '', code: '', type: '' })
   showCreate.value = true
 }
@@ -173,7 +190,7 @@ function onWheel(e: WheelEvent) {
 
 <template>
   <div class="project-switcher">
-    <button class="switcher-trigger" :title="currentName" @click="openManager">
+    <button v-if="!hideTrigger" class="switcher-trigger" :title="currentName" @click="openManager">
       <ProjectIcon class="trigger-icon" />
       <span class="switcher-name">{{ currentName }}</span>
     </button>

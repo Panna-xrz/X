@@ -9,7 +9,6 @@ import ConceptIcon from '@/components/icons/ConceptIcon.vue'
 import PlanIcon from '@/components/icons/PlanIcon.vue'
 import SpaceIcon from '@/components/icons/SpaceIcon.vue'
 import SettingsIcon from '@/components/icons/SettingsIcon.vue'
-import ProjectSwitcher from './ProjectSwitcher.vue'
 
 // 模块类型
 export type ModuleKey =
@@ -24,6 +23,7 @@ export type ModuleKey =
 defineProps<{
   currentModule: ModuleKey
   currentProjectId: number | null
+  forceManagerOpen?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -57,14 +57,16 @@ function onSelect(key: ModuleKey) {
 
 <template>
   <aside class="icon-bar">
-    <!-- 顶部：项目切换器 -->
+    <!-- 顶部：项目入口（图标） -->
     <div class="bar-top">
-      <ProjectSwitcher
-        :current-project-id="currentProjectId"
-        @select-project="(id) => emit('selectProject', id)"
-        @create-project="(payload) => emit('createProject', payload)"
-        @delete-project="(id) => emit('deleteProject', id)"
-      />
+      <NTooltip placement="right" :delay="200">
+        <template #trigger>
+          <button class="module-btn project-entry" @click="emit('selectModule', 'project')">
+            <ProjectIcon class="module-icon" />
+          </button>
+        </template>
+        项目管理
+      </NTooltip>
     </div>
 
     <!-- 中间：功能模块图标 -->

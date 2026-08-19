@@ -1,9 +1,17 @@
 import request from './request'
+import { readSetting } from '@/utils/settings'
 import type { PageResult, ApiResponse } from '@/types'
 
 // 统一解包辅助：后端返回裸数据体，拦截器已处理异常
 function unwrap<T>(p: Promise<{ data: T }>): Promise<T> {
   return p.then((res: any) => res as unknown as T)
+}
+
+// AI 接口超时：由设置面板 aiTimeout 控制（默认 120s）
+function aiTimeout(): number {
+  const sec = Number(readSetting('aiTimeout', '120'))
+  if (!Number.isFinite(sec) || sec <= 0) return 120000
+  return sec * 1000
 }
 
 // ============ 项目 CRUD ============
@@ -89,5 +97,5 @@ export function getProjectExtra(id: number): Promise<import('@/types').ProjectEx
 }
 
 export function aiExtractProjectInfo(id: number): Promise<import('@/types').AiExtractResult> {
-  return unwrap(request.post(`/projects/${id}/ai-extract`))
+  return unwrap(request.post(`/projects/${id}/ai-extract`, {}, { timeout: aiTimeout() }))
 }
