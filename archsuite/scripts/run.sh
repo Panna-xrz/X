@@ -9,4 +9,4 @@ cd "$PROJECT_ROOT"
 source .venv/bin/activate
 
 cd backend
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+exec uvicorn app.main:app --host 0.0.0.0 --port 9099 --reload

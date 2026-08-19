@@ -16,7 +16,7 @@ export default defineConfig({
     proxy: {
       // 统一将 /api 前缀代理到后端服务
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: 'http://127.0.0.1:9099',
         changeOrigin: true
       }
     }
