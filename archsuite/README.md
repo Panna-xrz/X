@@ -77,10 +77,35 @@ archsuite/
 
 ## 前端布局
 
-- 左侧 64px 图标栏：顶部项目切换器（选择/新建/删除），6 个模块 SVG 图标 + 底部设置
-- 点击图标切换主内容区，当前模块图标高亮
-- 所有页面基于当前选中项目操作，状态持久化到 localStorage
-- 高德地图 Key 在设置页配置（存 localStorage）
+整体为「顶栏 + 中栏[左|主|右] + 底栏」结构：
+
+- **顶栏 TopBar（40px）**：软件图标（建筑剪影）+ 名称 ArchSuite + 当前项目切换入口 + 布局开关（左/右/底三栏显隐）
+- **左侧 64px 图标栏 IconBar**：项目入口 + 6 个模块 SVG 图标 + 底部设置
+- **主内容区**：路由视图，带 12/16px 内边距，卡片化不贴边
+- **右侧 Panna AI 助手（360px，可折叠）**：聊天 / RAG / Agent / Panna 四种模式，后端待接入
+- **底栏 BottomBar（24px）**：连接状态 + 当前项目 + 日志条数，点击从底部滑出抽屉（日志 / 项目更新记录 / 连接状态三个 Tab）
+- 布局显隐由 `stores/layout.ts` 管理，持久化到 localStorage
+- 全局快捷键：`Ctrl+K` 项目管理、`Ctrl+B` 左栏、`Ctrl+J` 底栏、`Ctrl+/` 右栏、`Ctrl+,` 设置
+- 主题系统：4 层背景（page/card/panel/inset）+ 4 种字号（xs/sm/base/lg）+ 单字体族，无分割线靠层次分层，全部在设置面板可调
+
+## 设置面板
+
+8 个类别（两列卡片布局）：基本 / 界面 / API-Key / 运行时 / 导入导出 / 快捷键 / 关于 / 清理
+
+- **基本**：默认项目阶段、自动保存间隔、数据刷新间隔（调度器在 AppLayout 接管）
+- **界面**：深色模式、主色调、字体族、4 层背景色、4 种字号、圆角、紧凑度、内容区宽度（实时生效）
+- **API-Key**：高德地图 Key + 安全密钥（securityJsCode，2021-12-02 后申请的 Key 必填）+ LLM 提供商/Key/BaseURL/模型（含真实连接测试）
+- **运行时**：请求超时（→axios）、AI 请求超时（→AI 接口）、日志级别（→前端 logger，影响底栏日志抽屉）
+- **导入导出**：设置 JSON 导出/导入
+- **快捷键**：全局快捷键速查
+- **关于** / **清理**：应用信息 / 缓存与项目数据清理
+
+## 场地周边功能
+
+- 高德地图选点（点击/拖拽标记）+ 关键词搜索定位（PlaceSearch）
+- 经纬度 + CGCS2000 3 度带 XY 联动显示（自动按经度选中央子午线）
+- 用地红线放线：粘贴/上传 CSV/TSV/TXT 坐标表 → 解析 → 高斯反算为经纬度 → 地图绘制多边形并自适应视野
+- 坐标换算工具：`utils/coord.ts`（高斯-克吕格 3 度带正反算 + 红线表解析）
 
 ## API 契约约定
 
@@ -94,9 +119,11 @@ archsuite/
 ```bash
 ./scripts/setup.sh           # 创建 venv + 安装前后端依赖
 ./scripts/build_frontend.sh  # 构建前端到 backend/static
-./scripts/run.sh             # 启动 uvicorn (0.0.0.0:8000)
-# 浏览器访问 http://localhost:8000
+./scripts/run.sh             # 启动 uvicorn (0.0.0.0:9099)
+# 浏览器访问 http://localhost:9099
 ```
+
+> 后端在 `/` 直接托管 SPA（`frontend/dist/index.html`），需先 `cd frontend && npm run build` 生成构建产物。`GET /` 返回 404 通常因 dist 缺失。
 
 ## 测试
 

@@ -1,4 +1,5 @@
 import request from './request'
+import { readSetting } from '@/utils/settings'
 import type {
   Contract,
   ContractNode,
@@ -10,6 +11,13 @@ import type {
 
 function unwrap<T>(p: Promise<any>): Promise<T> {
   return p.then((res: any) => res as unknown as T)
+}
+
+// AI 接口超时：由设置面板 aiTimeout 控制（默认 120s）
+function aiTimeout(): number {
+  const sec = Number(readSetting('aiTimeout', '120'))
+  if (!Number.isFinite(sec) || sec <= 0) return 120000
+  return sec * 1000
 }
 
 // 合同可编辑字段
@@ -44,11 +52,11 @@ export function deleteContract(id: number): Promise<void> {
 
 // 合同正文生成/审核/下载
 export function generateContract(id: number): Promise<ContractGenerateResult> {
-  return unwrap(request.post(`/contracts/${id}/generate`))
+  return unwrap(request.post(`/contracts/${id}/generate`, {}, { timeout: aiTimeout() }))
 }
 
 export function reviewContract(id: number): Promise<ContractReviewResult> {
-  return unwrap(request.post(`/contracts/${id}/review`))
+  return unwrap(request.post(`/contracts/${id}/review`, {}, { timeout: aiTimeout() }))
 }
 
 export function downloadContract(id: number): Promise<Blob> {
