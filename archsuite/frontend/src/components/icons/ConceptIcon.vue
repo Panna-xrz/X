@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 概念构思图标：灯泡
+// 概念构思图标：灯泡（顶部圆弧 + 底座 + 螺钉），简洁高级线性风
 </script>
 
 <template>
@@ -9,18 +9,15 @@
     height="24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.5"
+    stroke-width="1.6"
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <!-- 灯泡上半圆 -->
-    <path d="M9 18h6" />
-    <path d="M10 18a6 6 0 1 1 4 0" />
-    <!-- 螺纹 -->
-    <path d="M9.5 18v2M12 18v2.5M14.5 18v2" />
-    <!-- 底座 -->
-    <path d="M9.5 20.5h5" />
-    <!-- 光芒 -->
-    <path d="M12 3v2M5 6l1.4 1.4M19 6l-1.4 1.4M3 12h2M19 12h2" />
+    <!-- 灯泡顶部圆弧 -->
+    <path d="M9 13.5a5 5 0 1 1 6 0" />
+    <!-- 主体到座 -->
+    <path d="M9 13.5v2.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.5" />
+    <!-- 螺钉 -->
+    <path d="M10.5 17v1.5M13.5 17v1.5" />
   </svg>
 </template>

@@ -1,22 +1,24 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { NButton, NInput, NSpace, useMessage } from 'naive-ui'
+import { lngLatToGauss3 } from '@/utils/coord'
 
 // 高德地图选点组件
 // - 通过 script 标签动态加载高德 JS API 2.0
-// - 支持点击/拖拽标记选点
-// - 支持逆地理编码显示地址
-// - 高德 Key 从 localStorage 读取（settings 中配置），默认占位符 YOUR_AMAP_KEY
-// Props/Emits 支持 v-model 经度 + v-model:lat 纬度
+// - 支持点击/拖拽标记选点 + 关键词搜索（AutoComplete 建议 + PlaceSearch 定位）
+// - 显示 WGS84 经纬度 + CGCS2000 3 度带 XY
+// - 支持外部传入红线点列表，自动绘制用地红线多边形
 
 const props = withDefaults(
   defineProps<{
     modelValue: number | null
     latModel: number | null
     height?: number
+    redline?: Array<{ lng: number; lat: number }>
   }>(),
   {
-    height: 360
+    height: 360,
+    redline: () => []
   }
 )
 
@@ -39,11 +41,23 @@ function getAmapKey(): string {
 const mapContainer = ref<HTMLDivElement | null>(null)
 const searchInput = ref('')
 const addressText = ref('')
+const searchLoading = ref(false)
 let mapInstance: any = null
 let markerInstance: any = null
 let geocoderInstance: any = null
 let autoCompleteInstance: any = null
 let placeSearchInstance: any = null
+let polygonInstance: any = null
+
+// CGCS2000 3 度带 XY（基于当前经纬度自动计算）
+const xyInfo = computed(() => {
+  if (props.modelValue == null || props.latModel == null) return null
+  try {
+    return lngLatToGauss3(props.modelValue, props.latModel)
+  } catch {
+    return null
+  }
+})
 
 // 动态加载高德 JS API
 function loadAmapScript(): Promise<void> {
@@ -117,6 +131,8 @@ async function initMap() {
     if (props.modelValue != null && props.latModel != null) {
       reverseGeocode(props.modelValue, props.latModel)
     }
+    // 地图就绪后绘制初始红线
+    drawRedline()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '地图初始化失败')
   }
@@ -147,8 +163,15 @@ function reverseGeocode(lng: number, lat: number) {
 
 // 关键词搜索定位
 function searchAddress() {
-  if (!searchInput.value.trim() || !autoCompleteInstance || !placeSearchInstance) return
-  placeSearchInstance.search(searchInput.value.trim(), (status: string, result: any) => {
+  const kw = searchInput.value.trim()
+  if (!kw) return
+  if (!placeSearchInstance || !mapInstance) {
+    message.warning('地图尚未就绪，请稍后再试')
+    return
+  }
+  searchLoading.value = true
+  placeSearchInstance.search(kw, (status: string, result: any) => {
+    searchLoading.value = false
     if (status === 'complete' && result?.poiList?.pois?.length) {
       const poi = result.poiList.pois[0]
       const lng = poi.location.lng
@@ -161,6 +184,36 @@ function searchAddress() {
     }
   })
 }
+
+// 绘制/清除用地红线多边形
+function drawRedline() {
+  if (!mapInstance || !(window as any).AMap) return
+  const AMapNS = (window as any).AMap
+  if (polygonInstance) {
+    polygonInstance.setMap(null)
+    polygonInstance = null
+  }
+  const pts = props.redline
+  if (!pts || pts.length < 3) return
+  const path = pts.map((p) => [p.lng, p.lat])
+  polygonInstance = new AMapNS.Polygon({
+    path,
+    fillColor: '#c8344e',
+    fillOpacity: 0.12,
+    strokeColor: '#c8344e',
+    strokeWeight: 2,
+    strokeOpacity: 0.9
+  })
+  polygonInstance.setMap(mapInstance)
+  mapInstance.setFitView([polygonInstance])
+}
+
+// 外部红线变化时重绘
+watch(
+  () => props.redline,
+  () => drawRedline(),
+  { deep: true }
+)
 
 // 外部经纬度变化时同步标记
 watch(
@@ -184,6 +237,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   try {
+    polygonInstance?.setMap?.(null)
     mapInstance?.destroy?.()
   } catch (e) {
     // ignore
@@ -193,6 +247,7 @@ onBeforeUnmount(() => {
   geocoderInstance = null
   autoCompleteInstance = null
   placeSearchInstance = null
+  polygonInstance = null
 })
 </script>
 
@@ -207,7 +262,9 @@ onBeforeUnmount(() => {
           style="width: 240px"
           @keyup.enter="searchAddress"
         />
-        <NButton size="small" type="primary" @click="searchAddress">搜索定位</NButton>
+        <NButton size="small" type="primary" :loading="searchLoading" @click="searchAddress">
+          搜索定位
+        </NButton>
       </NSpace>
     </div>
     <div ref="mapContainer" class="map-canvas" :style="{ height: `${height}px` }" />
@@ -218,6 +275,11 @@ onBeforeUnmount(() => {
         </span>
         <span class="coord">
           纬度：<b>{{ latModel ?? '-' }}</b>
+        </span>
+        <span v-if="xyInfo" class="coord coord-xy">
+          CGCS2000 <span class="xy-tag">{{ xyInfo.zone }}带</span>
+          X：<b>{{ xyInfo.X.toFixed(3) }}</b>
+          Y：<b>{{ xyInfo.Y.toFixed(3) }}</b>
         </span>
       </NSpace>
       <div v-if="addressText" class="address">地址：{{ addressText }}</div>
@@ -236,7 +298,7 @@ onBeforeUnmount(() => {
 
 .map-canvas {
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--app-radius);
   overflow: hidden;
   background: var(--app-card-bg);
 }
@@ -251,10 +313,22 @@ onBeforeUnmount(() => {
     font-weight: 600;
   }
 
+  .coord-xy {
+    .xy-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      margin: 0 4px;
+      border-radius: var(--app-radius);
+      background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+      color: var(--app-primary);
+      font-size: 0.86em;
+    }
+  }
+
   .address {
     margin-top: 4px;
     color: var(--app-text-2);
-  font-size: 0.86em;
+    font-size: 0.86em;
   }
 }
 </style>

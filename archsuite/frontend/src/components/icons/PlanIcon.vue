@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 平面构成图标：网格平面图
+// 平面构成图标：平面图网格（外框 + 十字分割），简洁高级线性风
 </script>
 
 <template>
@@ -9,15 +9,13 @@
     height="24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.5"
+    stroke-width="1.6"
     stroke-linecap="round"
     stroke-linejoin="round"
   >
     <!-- 外框 -->
-    <rect x="3" y="3" width="18" height="18" rx="0.5" />
-    <!-- 网格内部分割 -->
-    <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-    <!-- 中心强调点 -->
-    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    <rect x="4" y="4" width="16" height="16" />
+    <!-- 十字分割 -->
+    <path d="M4 12h16M12 4v16" />
   </svg>
 </template>

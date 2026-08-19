@@ -34,7 +34,7 @@ function handleFont(value: string) {
 
 // 字号选择
 function handleFontSize(value: number) {
-  themeStore.setFontSize(value)
+  themeStore.setFontSizeBase(value)
 }
 
 // 圆角选择

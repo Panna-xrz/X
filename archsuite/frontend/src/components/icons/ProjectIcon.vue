@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 项目信息图标：建筑/楼层组合，体现"项目主体"
+// 项目信息图标：建筑剪影（屋顶+主体+门），简洁高级线性风
 </script>
 
 <template>
@@ -9,19 +9,15 @@
     height="24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.5"
+    stroke-width="1.6"
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <!-- 左侧高层建筑 -->
-    <rect x="3" y="3" width="7" height="18" rx="0.5" />
-    <!-- 楼层分隔线 -->
-    <path d="M5 7h3M5 11h3M5 15h3" />
-    <!-- 右侧低层建筑 -->
-    <path d="M14 14h7v7h-7z" />
     <!-- 屋顶斜线 -->
-    <path d="M13 14l4-4 4 4" />
-    <!-- 地面线 -->
-    <path d="M2 21h20" />
+    <path d="M4 9.5L12 4l8 5.5" />
+    <!-- 主体 -->
+    <path d="M6.5 9.5V20h11V9.5" />
+    <!-- 门 -->
+    <path d="M10 20v-5.5h4V20" />
   </svg>
 </template>

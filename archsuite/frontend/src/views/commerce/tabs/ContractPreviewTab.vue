@@ -143,7 +143,7 @@ onMounted(() => loadContracts())
   color: var(--app-text-2);
   padding: 8px 12px;
   background: var(--app-bg, #f7f8fa);
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   margin-bottom: 12px;
 }
 
@@ -156,7 +156,7 @@ onMounted(() => loadContracts())
   color: var(--app-text-1);
   background: var(--app-bg, #f7f8fa);
   padding: 16px;
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   max-height: 560px;
   overflow-y: auto;
   margin: 0;

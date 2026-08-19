@@ -20,7 +20,12 @@ import {
   useMessage
 } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
-import { fontFamilyCandidates, borderRadiusScale } from '@/styles/tokens'
+import {
+  fontFamilyCandidates,
+  borderRadiusScale,
+  lightPalette,
+  darkPalette
+} from '@/styles/tokens'
 
 // 设置页：基本设置 / 界面设置 / LLM / 运行时 / 关于 / 清理
 const themeStore = useThemeStore()
@@ -98,6 +103,17 @@ const isDark = computed<boolean>({
 const presetSwatches = ['#3457d5', '#1f9d6b', '#7b61d6', '#d68a1f', '#c8344e']
 
 const fontOptions = fontFamilyCandidates.map((f) => ({ label: f.label, value: f.value }))
+
+// 当前主题色板默认背景（用于"恢复默认"按钮显示与未自定义时的回退值）
+const defaultSurface = computed(() => {
+  const pal = themeStore.isDark ? darkPalette : lightPalette
+  return {
+    surfacePage: pal.surfacePage,
+    surfaceCard: pal.surfaceCard,
+    surfacePanel: pal.surfacePanel,
+    surfaceInset: pal.surfaceInset
+  }
+})
 
 const contentMaxWidthOptions = [
   { label: '满屏', value: 'full' },
@@ -275,18 +291,108 @@ function clearProjectData() {
                 @update:value="(v: string) => themeStore.setFontFamily(v)"
               />
             </NFormItem>
-            <NFormItem label="字号">
+          </NForm>
+
+          <!-- 4 层背景色（无分割线，靠层次区分） -->
+          <div class="sub-title">背景层次</div>
+          <NForm label-placement="left" label-width="140">
+            <NFormItem label="页面底色 L1">
+              <div class="color-row">
+                <NColorPicker
+                  :value="themeStore.surfacePage || defaultSurface.surfacePage"
+                  :show-alpha="false"
+                  @update:value="(v: string) => themeStore.setSurfacePage(v)"
+                />
+                <NButton quaternary size="tiny" @click="themeStore.setSurfacePage(null)">默认</NButton>
+              </div>
+            </NFormItem>
+            <NFormItem label="卡片底色 L2">
+              <div class="color-row">
+                <NColorPicker
+                  :value="themeStore.surfaceCard || defaultSurface.surfaceCard"
+                  :show-alpha="false"
+                  @update:value="(v: string) => themeStore.setSurfaceCard(v)"
+                />
+                <NButton quaternary size="tiny" @click="themeStore.setSurfaceCard(null)">默认</NButton>
+              </div>
+            </NFormItem>
+            <NFormItem label="次级面板 L3">
+              <div class="color-row">
+                <NColorPicker
+                  :value="themeStore.surfacePanel || defaultSurface.surfacePanel"
+                  :show-alpha="false"
+                  @update:value="(v: string) => themeStore.setSurfacePanel(v)"
+                />
+                <NButton quaternary size="tiny" @click="themeStore.setSurfacePanel(null)">默认</NButton>
+              </div>
+            </NFormItem>
+            <NFormItem label="内嵌区 L4">
+              <div class="color-row">
+                <NColorPicker
+                  :value="themeStore.surfaceInset || defaultSurface.surfaceInset"
+                  :show-alpha="false"
+                  @update:value="(v: string) => themeStore.setSurfaceInset(v)"
+                />
+                <NButton quaternary size="tiny" @click="themeStore.setSurfaceInset(null)">默认</NButton>
+              </div>
+            </NFormItem>
+          </NForm>
+
+          <!-- 4 种字号 -->
+          <div class="sub-title">字号梯度</div>
+          <NForm label-placement="left" label-width="140">
+            <NFormItem label="辅助字号 (xs)">
               <div class="slider-row">
                 <NSlider
-                  :value="themeStore.fontSize"
+                  :value="themeStore.fontSizeXs"
+                  :min="10"
+                  :max="14"
+                  :step="1"
+                  @update:value="(v: number) => themeStore.setFontSizeXs(v)"
+                />
+                <span class="slider-value">{{ themeStore.fontSizeXs }}px</span>
+              </div>
+            </NFormItem>
+            <NFormItem label="次要字号 (sm)">
+              <div class="slider-row">
+                <NSlider
+                  :value="themeStore.fontSizeSm"
+                  :min="11"
+                  :max="15"
+                  :step="1"
+                  @update:value="(v: number) => themeStore.setFontSizeSm(v)"
+                />
+                <span class="slider-value">{{ themeStore.fontSizeSm }}px</span>
+              </div>
+            </NFormItem>
+            <NFormItem label="主字号 (base)">
+              <div class="slider-row">
+                <NSlider
+                  :value="themeStore.fontSizeBase"
                   :min="12"
                   :max="18"
                   :step="1"
-                  @update:value="(v: number) => themeStore.setFontSize(v)"
+                  @update:value="(v: number) => themeStore.setFontSizeBase(v)"
                 />
-                <span class="slider-value">{{ themeStore.fontSize }}px</span>
+                <span class="slider-value">{{ themeStore.fontSizeBase }}px</span>
               </div>
             </NFormItem>
+            <NFormItem label="标题字号 (lg)">
+              <div class="slider-row">
+                <NSlider
+                  :value="themeStore.fontSizeLg"
+                  :min="14"
+                  :max="22"
+                  :step="1"
+                  @update:value="(v: number) => themeStore.setFontSizeLg(v)"
+                />
+                <span class="slider-value">{{ themeStore.fontSizeLg }}px</span>
+              </div>
+            </NFormItem>
+          </NForm>
+
+          <div class="sub-title">其他</div>
+          <NForm label-placement="left" label-width="140">
             <NFormItem label="圆角">
               <div class="slider-row">
                 <NSlider
@@ -491,10 +597,21 @@ function clearProjectData() {
   }
 }
 
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+
+  :deep(.n-color-picker-trigger) {
+    flex: 1;
+  }
+}
+
 .swatch-btn {
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   border: 1px solid var(--app-divider);
   cursor: pointer;
   padding: 0;
